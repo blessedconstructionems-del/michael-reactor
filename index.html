@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Michael Reactor Lab</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --panel: rgba(10, 5, 2, 0.82);
+            --line: rgba(255, 182, 92, 0.18);
+            --line-strong: rgba(255, 207, 126, 0.42);
+            --text: #fff5df;
+            --muted: rgba(255, 230, 186, 0.66);
+            --hot: #ff991f;
+            --gold: #ffd16c;
+            --cream: #fff7d7;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background: #000;
+            color: var(--text);
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            overflow: hidden;
+        }
+
+        body.reactor-live .boot-overlay {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        body.booting .boot-grid,
+        body.booting .boot-noise,
+        body.booting .boot-beam {
+            opacity: 1;
+        }
+
+        button, textarea, input { font: inherit; }
+
+        .reactor-app {
+            position: relative;
+            min-height: 100vh;
+            background: #000;
+        }
+
+        .reactor-stage {
+            position: absolute;
+            inset: 0;
+            background: #000;
+        }
+
+        .boot-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(circle at center, rgba(255, 149, 28, 0.08), transparent 26%), #000;
+            transition: opacity 420ms ease, visibility 420ms ease;
+        }
+
+        .boot-grid, .boot-noise, .boot-beam {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .boot-grid {
+            background-image:
+                linear-gradient(rgba(255, 170, 60, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 170, 60, 0.08) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mix-blend-mode: screen;
+            animation: bootGridShift 8s linear infinite;
+        }
+
+        .boot-noise {
+            background: repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 5px);
+            mix-blend-mode: screen;
+            animation: bootNoise 180ms steps(4) infinite;
+        }
+
+        .boot-beam {
+            background: linear-gradient(180deg, transparent 0%, rgba(255, 188, 84, 0.18) 48%, transparent 100%);
+            transform: translateY(-100%);
+            animation: bootBeam 2.4s ease-in-out infinite;
+        }
+
+        .boot-card {
+            position: relative;
+            width: min(92vw, 760px);
+            padding: 32px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 186, 98, 0.16);
+            background: linear-gradient(180deg, rgba(14, 6, 2, 0.84), rgba(8, 3, 1, 0.94));
+            box-shadow: 0 30px 140px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        .boot-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent, rgba(255, 210, 128, 0.08), transparent);
+            transform: translateX(-100%);
+            animation: bootSweep 2.6s ease-in-out infinite;
+        }
+
+        .boot-eyebrow {
+            display: inline-flex;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 197, 108, 0.18);
+            color: var(--gold);
+            letter-spacing: 0.18em;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+        }
+
+        .boot-title {
+            margin: 18px 0 10px;
+            font-size: clamp(2.8rem, 7vw, 6rem);
+            line-height: 0.92;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .boot-copy {
+            max-width: 560px;
+            margin: 0 0 22px;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
+        .boot-status {
+            min-height: 1.6rem;
+            margin-bottom: 22px;
+            color: var(--cream);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+        }
+
+        .boot-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .boot-btn, .dock-btn, .mode-chip {
+            appearance: none;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            color: var(--text);
+            background: rgba(255, 164, 64, 0.08);
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+        }
+
+        .boot-btn:hover, .dock-btn:hover, .mode-chip:hover {
+            transform: translateY(-1px);
+            border-color: var(--line-strong);
+            background: rgba(255, 172, 78, 0.15);
+            box-shadow: 0 0 24px rgba(255, 149, 28, 0.14);
+        }
+
+        .boot-btn.primary, .dock-btn.primary {
+            background: linear-gradient(135deg, rgba(255, 211, 120, 0.32), rgba(255, 110, 18, 0.34));
+            border-color: rgba(255, 208, 126, 0.4);
+        }
+
+        .reactor-hud {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .hud-top {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            right: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .hud-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: min(52vw, 520px);
+        }
+
+        .hud-pill, .hud-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            width: fit-content;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 191, 110, 0.16);
+            background: rgba(9, 4, 2, 0.72);
+            backdrop-filter: blur(12px);
+            color: var(--muted);
+            pointer-events: auto;
+        }
+
+        .hud-title {
+            font-size: 0.74rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+
+        .hud-value {
+            color: var(--text);
+            font-size: 0.98rem;
+        }
+
+        .config-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .hud-badge {
+            padding: 8px 12px;
+            font-size: 0.78rem;
+        }
+
+        .dock {
+            position: absolute;
+            right: 18px;
+            bottom: 18px;
+            width: min(410px, calc(100vw - 36px));
+            padding: 18px;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 190, 108, 0.14);
+            background: linear-gradient(180deg, rgba(10, 5, 2, 0.84), rgba(5, 2, 1, 0.94));
+            backdrop-filter: blur(18px);
+            box-shadow: 0 28px 110px rgba(0, 0, 0, 0.55);
+            pointer-events: auto;
+        }
+
+        .dock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .dock-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .dock-title strong {
+            font-size: 1.1rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .dock-title span {
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+
+        .prompt-area {
+            width: 100%;
+            min-height: 116px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 188, 104, 0.12);
+            background: rgba(0, 0, 0, 0.72);
+            color: var(--text);
+            resize: vertical;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .prompt-area:focus {
+            outline: none;
+            border-color: rgba(255, 210, 128, 0.36);
+            box-shadow: 0 0 0 3px rgba(255, 149, 28, 0.12);
+        }
+
+        .dock-actions, .mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .mode-chip.active {
+            background: linear-gradient(135deg, rgba(255, 206, 122, 0.26), rgba(255, 104, 18, 0.22));
+            border-color: rgba(255, 207, 126, 0.4);
+        }
+
+        .slider-row {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .slider-row label {
+            color: var(--gold);
+            font-size: 0.74rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .slider-row input[type="range"] {
+            width: 100%;
+            accent-color: var(--hot);
+        }
+
+        .dock-card {
+            margin-top: 10px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 188, 104, 0.1);
+            background: rgba(0, 0, 0, 0.56);
+        }
+
+        .dock-card strong, .status-bar strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--gold);
+            font-size: 0.72rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .dock-card p, .status-bar p {
+            margin: 0;
+            color: var(--text);
+            line-height: 1.55;
+        }
+
+        .status-bar {
+            position: absolute;
+            left: 18px;
+            bottom: 18px;
+            max-width: min(560px, calc(100vw - 470px));
+            padding: 14px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 188, 104, 0.12);
+            background: rgba(8, 3, 1, 0.76);
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
+        }
+
+        audio { display: none; }
+
+        @keyframes bootGridShift {
+            from { transform: translateY(0); }
+            to { transform: translateY(44px); }
+        }
+
+        @keyframes bootNoise {
+            0% { transform: translateY(0); opacity: 0.08; }
+            100% { transform: translateY(4px); opacity: 0.18; }
+        }
+
+        @keyframes bootBeam {
+            0% { transform: translateY(-100%); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+
+        @keyframes bootSweep {
+            0% { transform: translateX(-100%); }
+            45%, 100% { transform: translateX(130%); }
+        }
+
+        @media (max-width: 980px) {
+            .hud-top { flex-direction: column; }
+            .status-bar {
+                max-width: calc(100vw - 36px);
+                right: 18px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .boot-card {
+                padding: 22px;
+                border-radius: 24px;
+            }
+
+            .dock {
+                right: 12px;
+                left: 12px;
+                bottom: 12px;
+                width: auto;
+                border-radius: 22px;
+            }
+
+            .status-bar {
+                left: 12px;
+                right: 12px;
+                bottom: auto;
+                top: 110px;
+                max-width: none;
+            }
+
+            .hud-top {
+                top: 12px;
+                left: 12px;
+                right: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reactor-app">
+        <div class="reactor-stage" id="particleStage"></div>
+
+        <div class="boot-overlay" id="bootOverlay">
+            <div class="boot-grid"></div>
+            <div class="boot-noise"></div>
+            <div class="boot-beam"></div>
+            <div class="boot-card">
+                <span class="boot-eyebrow">Standalone Reactor Preview / Michael</span>
+                <h1 class="boot-title">Ignite The Core</h1>
+                <p class="boot-copy">
+                    Full-screen Michael particle reactor with a tighter idle state, faster word-level
+                    expansion, and a glitch launch sequence. Built as a standalone page so the visual
+                    can be tuned cleanly before it touches the main app.
+                </p>
+                <div class="boot-status" id="bootStatus">Awaiting launch command.</div>
+                <div class="boot-actions">
+                    <button class="boot-btn primary" id="launchBtn">Glitch Launch</button>
+                    <button class="boot-btn" id="skipBtn">Skip To Reactor</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="reactor-hud">
+            <div class="hud-top">
+                <div class="hud-stack">
+                    <div class="hud-pill">
+                        <span class="hud-title">Mode</span>
+                        <span class="hud-value" id="stageModeValue">Idle</span>
+                    </div>
+                    <div class="hud-pill">
+                        <span class="hud-title">Behavior</span>
+                        <span class="hud-value" id="stageModeNote">Holding a compressed ignition state.</span>
+                    </div>
+                    <div class="config-row" id="configBadges">
+                        <span class="hud-badge">Loading hosted config...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <strong>Status</strong>
+                <p id="statusText">Booting reactor page...</p>
+            </div>
+
+            <div class="dock">
+                <div class="dock-header">
+                    <div class="dock-title">
+                        <strong>Michael Reactor Lab</strong>
+                        <span>Hosted standalone page wired to Grok fast + Michael ElevenLabs</span>
+                    </div>
+                </div>
+
+                <textarea class="prompt-area" id="promptInput">Give me a fast, sharp welcome line about building an AI that actually thinks.</textarea>
+
+                <div class="dock-actions">
+                    <button class="dock-btn primary" id="askGrokBtn">Ask Grok Fast + Speak</button>
+                    <button class="dock-btn" id="speakCustomBtn">Speak Custom</button>
+                    <button class="dock-btn" id="stopAudioBtn">Stop</button>
+                </div>
+
+                <div class="mode-row">
+                    <button class="mode-chip active" data-mode="idle">Idle</button>
+                    <button class="mode-chip" data-mode="thinking">Thinking</button>
+                    <button class="mode-chip" data-mode="speaking">Speaking Demo</button>
+                </div>
+
+                <div class="slider-row">
+                    <label for="energySlider">Manual Speaking Energy</label>
+                    <input id="energySlider" type="range" min="0" max="100" value="72" />
+                </div>
+
+                <div class="dock-card">
+                    <strong>Latest Michael Output</strong>
+                    <p id="responseText">No line generated yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="voiceAudio" preload="auto"></audio>
+
+    <script src="./michael-particle-burst.js"></script>
+    <script>
+        const API_BASE = new URLSearchParams(window.location.search).get('api') || 'https://legal-ai-m1pe.onrender.com';
+
+        const particleStage = document.getElementById('particleStage');
+        const promptInput = document.getElementById('promptInput');
+        const askGrokBtn = document.getElementById('askGrokBtn');
+        const speakCustomBtn = document.getElementById('speakCustomBtn');
+        const stopAudioBtn = document.getElementById('stopAudioBtn');
+        const energySlider = document.getElementById('energySlider');
+        const statusText = document.getElementById('statusText');
+        const responseText = document.getElementById('responseText');
+        const stageModeValue = document.getElementById('stageModeValue');
+        const stageModeNote = document.getElementById('stageModeNote');
+        const configBadges = document.getElementById('configBadges');
+        const audio = document.getElementById('voiceAudio');
+        const modeButtons = Array.from(document.querySelectorAll('.mode-chip'));
+        const launchBtn = document.getElementById('launchBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const bootStatus = document.getElementById('bootStatus');
+
+        const burst = new MichaelParticleBurst(particleStage, { particleCount: 220 });
+
+        let currentMode = 'idle';
+        let currentObjectUrl = null;
+        let currentRequestToken = 0;
+
+        function setStatus(message) {
+            statusText.textContent = message;
+        }
+
+        function setResponse(message) {
+            responseText.textContent = message;
+        }
+
+        function setMode(mode, note) {
+            currentMode = mode;
+            burst.setMode(mode);
+            stageModeValue.textContent = mode.toUpperCase();
+            stageModeNote.textContent = note || {
+                idle: 'Compressed, living, and still moving without throwing particles away from the core.',
+                thinking: 'Spin rate spikes and the shell destabilizes while the answer is being built.',
+                speaking: 'Expansion and contraction are driven by the live audio envelope instead of a generic float.'
+            }[mode];
+
+            modeButtons.forEach((button) => {
+                button.classList.toggle('active', button.dataset.mode === mode);
+            });
+        }
+
+        function setManualEnergyFromSlider() {
+            const normalized = Number(energySlider.value) / 100;
+            if (currentMode === 'speaking') {
+                burst.setManualEnergy(normalized);
+            }
+        }
+
+        async function ensureAudioGraph() {
+            if (!burst.audioContext) {
+                burst.connectAudioElement(audio);
+            }
+
+            if (burst.audioContext && burst.audioContext.state === 'suspended') {
+                await burst.audioContext.resume();
+            }
+        }
+
+        function resetAudioSource() {
+            if (currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+                currentObjectUrl = null;
+            }
+            audio.pause();
+            audio.currentTime = 0;
+            audio.removeAttribute('src');
+            audio.load();
+        }
+
+        async function fetchJson(url, payload) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Request failed');
+            }
+
+            return response.json();
+        }
+
+        async function fetchConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/api/lab-config`);
+                const config = await response.json();
+                configBadges.innerHTML = [
+                    `<span class="hud-badge">Grok: ${config.grokModel}</span>`,
+                    `<span class="hud-badge">Voice: ${config.voiceLabel}</span>`,
+                    `<span class="hud-badge">ElevenLabs: ${config.elevenlabsConfigured ? 'configured' : 'missing'}</span>`,
+                    `<span class="hud-badge">xAI: ${config.xaiConfigured ? 'configured' : 'missing'}</span>`
+                ].join('');
+                setStatus('Hosted reactor page is live. Launch it, then hammer on the motion.');
+                bootStatus.textContent = 'Hosted backend linked. Reactor ignition ready.';
+            } catch (error) {
+                setStatus(`Config load failed: ${error.message}`);
+                bootStatus.textContent = `Hosted link failed: ${error.message}`;
+            }
+        }
+
+        async function speakText(text) {
+            const trimmed = text.trim();
+            if (!trimmed) return;
+
+            currentRequestToken += 1;
+            const requestToken = currentRequestToken;
+
+            await ensureAudioGraph();
+            setMode('thinking', 'Michael is queuing the voice pass and preheating the shell.');
+            burst.setManualEnergy(null);
+            setStatus('Forging Michael voice through the hosted ElevenLabs proxy...');
+
+            const response = await fetch(`${API_BASE}/api/michael-lab-tts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: trimmed })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'TTS proxy failed');
+            }
+
+            const audioBlob = await response.blob();
+            if (requestToken !== currentRequestToken) return;
+
+            resetAudioSource();
+            currentObjectUrl = URL.createObjectURL(audioBlob);
+            audio.src = currentObjectUrl;
+
+            setResponse(trimmed);
+            setStatus('Voice buffer ready. Speaking envelope is now live.');
+            setMode('speaking');
+            burst.setManualEnergy(null);
+            await audio.play();
+        }
+
+        async function askGrokAndSpeak() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+
+            currentRequestToken += 1;
+            const requestToken = currentRequestToken;
+
+            await ensureAudioGraph();
+            setMode('thinking', 'Grok fast is writing while the reactor jumps into overclock.');
+            burst.setManualEnergy(null);
+            setStatus('Asking Grok fast for a Michael reply...');
+
+            const payload = await fetchJson(`${API_BASE}/api/michael-lab-reply`, { prompt });
+            if (requestToken !== currentRequestToken) return;
+
+            setResponse(payload.reply);
+            setStatus('Reply landed. Building the Michael voice take now...');
+            await speakText(payload.reply);
+        }
+
+        function stopEverything() {
+            currentRequestToken += 1;
+            resetAudioSource();
+            burst.setManualEnergy(null);
+            setMode('idle');
+            setStatus('Playback stopped. Reactor collapsed back into idle compression.');
+        }
+
+        async function runLaunchSequence(skip) {
+            if (document.body.classList.contains('reactor-live')) return;
+
+            if (skip) {
+                document.body.classList.add('reactor-live');
+                setMode('idle');
+                setStatus('Reactor live. Use the dock to tune Michael.');
+                return;
+            }
+
+            document.body.classList.add('booting');
+            bootStatus.textContent = 'Injecting signal corruption...';
+            setMode('thinking', 'Boot sequence destabilizing shell geometry.');
+
+            await new Promise((resolve) => setTimeout(resolve, 520));
+            bootStatus.textContent = 'Spinning the Michael core past safe limits...';
+
+            await new Promise((resolve) => setTimeout(resolve, 620));
+            bootStatus.textContent = 'Locking reactor envelope to live audio response...';
+
+            await new Promise((resolve) => setTimeout(resolve, 540));
+            document.body.classList.remove('booting');
+            document.body.classList.add('reactor-live');
+            setMode('idle');
+            setStatus('Reactor live. Idle is compressed; speech opens on phrase hits.');
+        }
+
+        askGrokBtn.addEventListener('click', async () => {
+            askGrokBtn.disabled = true;
+            try {
+                await askGrokAndSpeak();
+            } catch (error) {
+                setStatus(`Grok test failed: ${error.message}`);
+            } finally {
+                askGrokBtn.disabled = false;
+            }
+        });
+
+        speakCustomBtn.addEventListener('click', async () => {
+            speakCustomBtn.disabled = true;
+            try {
+                await speakText(promptInput.value);
+            } catch (error) {
+                setStatus(`Custom voice failed: ${error.message}`);
+            } finally {
+                speakCustomBtn.disabled = false;
+            }
+        });
+
+        stopAudioBtn.addEventListener('click', stopEverything);
+        energySlider.addEventListener('input', setManualEnergyFromSlider);
+        launchBtn.addEventListener('click', () => runLaunchSequence(false));
+        skipBtn.addEventListener('click', () => runLaunchSequence(true));
+
+        modeButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const mode = button.dataset.mode;
+                setMode(mode);
+                if (mode === 'speaking') {
+                    burst.setManualEnergy(Number(energySlider.value) / 100);
+                } else {
+                    burst.setManualEnergy(null);
+                }
+            });
+        });
+
+        audio.addEventListener('ended', () => {
+            burst.setManualEnergy(null);
+            setMode('idle');
+            setStatus('Playback finished. Ready for another phrase test.');
+        });
+
+        audio.addEventListener('pause', () => {
+            if (audio.currentTime === 0 || audio.currentTime >= audio.duration || Number.isNaN(audio.duration)) {
+                burst.setManualEnergy(null);
+            }
+        });
+
+        fetchConfig();
+        setMode('idle');
+    </script>
+</body>
+</html>
