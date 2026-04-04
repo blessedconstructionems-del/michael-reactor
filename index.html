@@ -453,6 +453,71 @@
             };
         }
 
+        function classifyIncomingPressureProfile(text) {
+            const normalized = String(text || '').toLowerCase();
+            const profile = {
+                force: 0,
+                warmth: 0,
+                heaviness: 0,
+                wonder: 0,
+                tension: 0
+            };
+
+            profile.tension += scoreHits(normalized, [
+                'hate you', 'fuck you', 'you suck', 'stupid', 'idiot', 'dumb',
+                'worthless', 'useless', 'shut up', 'moron', 'bitch', 'annoying'
+            ], 0.34);
+
+            profile.force += scoreHits(normalized, [
+                'do it', 'do this', 'now', 'right now', 'immediately', 'hurry',
+                'faster', 'answer me', 'fix it', 'just do it', 'come on'
+            ], 0.2);
+
+            profile.tension += scoreHits(normalized, [
+                'why havent you', 'why haven\'t you', 'why arent you', 'why aren\'t you',
+                'what is taking so long', 'stop messing around', 'you need to',
+                'you better', 'dont waste my time', 'don\'t waste my time'
+            ], 0.24);
+
+            const exclamationCount = (text.match(/!/g) || []).length;
+            const questionBurst = (text.match(/\?{2,}/g) || []).length;
+            const capsCount = (text.match(/\b[A-Z]{3,}\b/g) || []).length;
+
+            profile.force += Math.min(0.28, exclamationCount * 0.05 + capsCount * 0.09);
+            profile.tension += Math.min(0.42, exclamationCount * 0.08 + capsCount * 0.1 + questionBurst * 0.12);
+
+            if (/(i hate you|fuck you|you are useless|you're useless|you are stupid|you're stupid)/.test(normalized)) {
+                profile.tension += 0.42;
+                profile.force += 0.18;
+            }
+
+            if (/(hurry up|do it now|answer now|fix this now|i said now)/.test(normalized)) {
+                profile.force += 0.34;
+                profile.tension += 0.28;
+            }
+
+            return {
+                force: clamp(profile.force),
+                warmth: 0,
+                heaviness: 0,
+                wonder: 0,
+                tension: clamp(profile.tension)
+            };
+        }
+
+        function mergeSpeakingProfiles(baseProfile, overlayProfile) {
+            const overlayTension = clamp(overlayProfile?.tension || 0);
+            const overlayForce = clamp(overlayProfile?.force || 0);
+
+            return {
+                force: clamp((baseProfile?.force || 0) * 0.84 + overlayForce * 1.26 + overlayTension * 0.18),
+                warmth: clamp((baseProfile?.warmth || 0) * (1 - overlayTension * 0.58)),
+                heaviness: clamp((baseProfile?.heaviness || 0) * (1 - overlayTension * 0.18)),
+                wonder: clamp((baseProfile?.wonder || 0) * (1 - overlayTension * 0.42)),
+                tension: clamp((baseProfile?.tension || 0) * 0.82 + overlayTension * 1.34)
+            };
+        }
+
         function describeSpeakingProfile(profile) {
             const ranked = Object.entries(profile)
                 .sort((a, b) => b[1] - a[1])
@@ -551,10 +616,13 @@
             }
         }
 
-        async function speakText(text) {
+        async function speakText(text, incomingContext = '') {
             const trimmed = text.trim();
             if (!trimmed) return;
-            const speakingProfile = classifySpeakingColorProfile(trimmed);
+            const speakingProfile = mergeSpeakingProfiles(
+                classifySpeakingColorProfile(trimmed),
+                classifyIncomingPressureProfile(incomingContext)
+            );
 
             currentRequestToken += 1;
             const requestToken = currentRequestToken;
@@ -607,7 +675,7 @@
 
             setResponse(payload.reply);
             setStatus('Reply landed. Building the Michael voice take now...');
-            await speakText(payload.reply);
+            await speakText(payload.reply, prompt);
         }
 
         function stopEverything() {
