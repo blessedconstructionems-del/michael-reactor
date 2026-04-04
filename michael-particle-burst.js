@@ -567,6 +567,17 @@ class MichaelParticleBurst {
         return `#${toHex(r)}${toHex(g)}${toHex(blue)}`;
     }
 
+    blendPalette(basePalette, targetPalette, mix) {
+        const t = this.clamp(mix);
+        return {
+            core: this.mixHex(basePalette.core, targetPalette.core, t),
+            hot: this.mixHex(basePalette.hot, targetPalette.hot, t),
+            ember: this.mixHex(basePalette.ember, targetPalette.ember, t),
+            spark: this.mixHex(basePalette.spark, targetPalette.spark, t),
+            smoke: basePalette.smoke
+        };
+    }
+
     getSpeakingPalette(rise = 0) {
         const lift = 0.36 + this.clamp(rise) * 0.64;
         const profile = this.speakingColorProfile;
@@ -575,36 +586,73 @@ class MichaelParticleBurst {
         const heaviness = this.clamp((profile.heaviness * 1.58 + profile.tension * 0.14) * lift);
         const wonder = this.clamp((profile.wonder * 1.36 + profile.warmth * 0.12) * lift);
         const tension = this.clamp((profile.tension * 1.44 + profile.force * 0.18) * lift);
-
-        let ember = this.options.palette.ember;
-        let hot = this.options.palette.hot;
-        let spark = this.options.palette.spark;
-        let core = this.options.palette.core;
-
-        ember = this.mixHex(ember, '#2536d8', heaviness * 0.98);
-        ember = this.mixHex(ember, '#ff3b22', force * 0.94 + tension * 0.32);
-        ember = this.mixHex(ember, '#d2f6ff', wonder * 0.28);
-
-        hot = this.mixHex(hot, '#ff4f22', force * 0.98 + tension * 0.34);
-        hot = this.mixHex(hot, '#f7c870', warmth * 0.56);
-        hot = this.mixHex(hot, '#294fff', heaviness * 0.94);
-        hot = this.mixHex(hot, '#e3fbff', wonder * 0.34);
-
-        spark = this.mixHex(spark, '#ff2f18', force * 0.96 + tension * 0.44);
-        spark = this.mixHex(spark, '#ffe3a2', warmth * 0.64);
-        spark = this.mixHex(spark, '#98b6ff', heaviness * 0.58);
-        spark = this.mixHex(spark, '#ffffff', wonder * 0.72 + tension * 0.16);
-
-        core = this.mixHex(core, '#ffe1d4', warmth * 0.24 + force * 0.16);
-        core = this.mixHex(core, '#dfe8ff', heaviness * 0.24 + wonder * 0.28);
-
-        return {
-            core,
-            hot,
-            ember,
-            spark,
+        const basePalette = {
+            core: '#e8ffff',
+            hot: '#39e7d7',
+            ember: '#58b8ff',
+            spark: '#8cffb7',
             smoke: this.options.palette.smoke
         };
+
+        const forcePalette = {
+            core: '#fff0e8',
+            hot: '#ff5a26',
+            ember: '#c91c00',
+            spark: '#ffd2aa',
+            smoke: this.options.palette.smoke
+        };
+
+        const heavinessPalette = {
+            core: '#eef3ff',
+            hot: '#4568ff',
+            ember: '#1d33b8',
+            spark: '#aec2ff',
+            smoke: this.options.palette.smoke
+        };
+
+        const warmthPalette = {
+            core: '#fff7e8',
+            hot: '#f0c66f',
+            ember: '#2ed8c4',
+            spark: '#ffe09b',
+            smoke: this.options.palette.smoke
+        };
+
+        const wonderPalette = {
+            core: '#ffffff',
+            hot: '#74eeff',
+            ember: '#45b1ff',
+            spark: '#ffffff',
+            smoke: this.options.palette.smoke
+        };
+
+        let palette = basePalette;
+        const ranked = [
+            { name: 'force', value: force, palette: forcePalette },
+            { name: 'heaviness', value: heaviness, palette: heavinessPalette },
+            { name: 'warmth', value: warmth, palette: warmthPalette },
+            { name: 'wonder', value: wonder, palette: wonderPalette }
+        ].sort((a, b) => b.value - a.value);
+
+        if (ranked[0].value > 0.14) {
+            palette = this.blendPalette(basePalette, ranked[0].palette, 0.52 + ranked[0].value * 0.44);
+        }
+
+        if (ranked[1].value > 0.18) {
+            palette = this.blendPalette(palette, ranked[1].palette, 0.18 + ranked[1].value * 0.2);
+        }
+
+        if (tension > 0.2) {
+            palette = this.blendPalette(palette, {
+                core: '#fff6f2',
+                hot: '#ff7846',
+                ember: '#ff2a16',
+                spark: '#ffffff',
+                smoke: this.options.palette.smoke
+            }, 0.14 + tension * 0.26);
+        }
+
+        return palette;
     }
 
     rotatePoint(point, time) {
