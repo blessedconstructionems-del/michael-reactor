@@ -263,13 +263,7 @@ class MichaelParticleBurst {
 
     setMode(mode) {
         if (!['idle', 'thinking', 'speaking'].includes(mode)) return;
-        if (mode !== this.mode) {
-            this.shockwaves.push({
-                radius: this.baseRadius * 0.22,
-                alpha: mode === 'thinking' ? 0.16 : 0.22,
-                speed: mode === 'thinking' ? 2.4 : 2.9
-            });
-        }
+        this.shockwaves.length = 0;
         this.lastMode = this.mode;
         this.mode = mode;
     }
@@ -700,7 +694,6 @@ class MichaelParticleBurst {
     draw(time) {
         this.drawBackground();
         this.drawScaffold(time);
-        this.drawShockwaves();
         this.drawCore(time);
 
         const projected = this.particles.map((particle) => this.rotatePoint(particle, time));
