@@ -25,11 +25,11 @@ class MichaelParticleBurst {
 
         this.mode = 'idle';
         this.manualEnergy = null;
-        this.currentEnergy = 0.12;
-        this.currentSpread = 0.34;
+        this.currentEnergy = 0.08;
+        this.currentSpread = 0.48;
         this.currentSpin = 0.0025;
-        this.currentLineAlpha = 0.16;
-        this.currentJitter = 0.18;
+        this.currentLineAlpha = 0.1;
+        this.currentJitter = 0.08;
         this.currentHalo = 0.28;
         this.rotationY = 0;
         this.rotationX = 0;
@@ -134,10 +134,10 @@ class MichaelParticleBurst {
         this.canvas.style.width = `${this.width}px`;
         this.canvas.style.height = `${this.height}px`;
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        this.cx = this.width / 2;
-        this.cy = this.height / 2;
-        this.baseRadius = Math.min(this.width, this.height) * 0.34;
-        this.focalLength = Math.min(this.width, this.height) * 1.16;
+        this.cx = this.width > 980 ? this.width * 0.42 : this.width / 2;
+        this.cy = this.height * 0.48;
+        this.baseRadius = Math.min(this.width, this.height) * 0.42;
+        this.focalLength = Math.min(this.width, this.height) * 1.22;
     }
 
     setMode(mode) {
@@ -342,12 +342,85 @@ class MichaelParticleBurst {
         }
     }
 
+    drawScaffold(time) {
+        const shellRx = this.baseRadius * (0.92 + this.currentSpread * 0.24);
+        const shellRy = this.baseRadius * (1.08 + this.currentSpread * 0.22);
+        const shellAlpha = 0.045 + this.currentEnergy * 0.03;
+
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'screen';
+
+        const ellipses = [
+            {
+                rx: shellRx * 0.94,
+                ry: shellRy * 1.04,
+                rotation: -0.08 + this.rotationZ * 0.12,
+                start: -1.55,
+                end: 1.55,
+                stroke: `rgba(86, 216, 255, ${shellAlpha})`,
+                width: 0.82
+            },
+            {
+                rx: shellRx * 1.03,
+                ry: shellRy * 0.56,
+                rotation: 0.22 + this.rotationX * 0.18,
+                start: 0.18,
+                end: Math.PI - 0.18,
+                stroke: `rgba(57, 231, 215, ${0.038 + this.currentEnergy * 0.026})`,
+                width: 0.68
+            },
+            {
+                rx: shellRx * 0.82,
+                ry: shellRy * 0.96,
+                rotation: -0.72 + this.rotationY * 0.08,
+                start: -1.2,
+                end: 2.05,
+                stroke: `rgba(112, 236, 255, ${0.032 + this.currentEnergy * 0.024})`,
+                width: 0.54
+            },
+            {
+                rx: shellRx * 1.08,
+                ry: shellRy * 0.44,
+                rotation: -0.2 - this.rotationZ * 0.08,
+                start: Math.PI + 0.2,
+                end: Math.PI * 2 - 0.22,
+                stroke: `rgba(140, 255, 183, ${0.022 + this.currentEnergy * 0.016})`,
+                width: 0.44
+            }
+        ];
+
+        for (const ellipse of ellipses) {
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = ellipse.stroke;
+            this.ctx.lineWidth = ellipse.width;
+            this.ctx.ellipse(this.cx, this.cy, ellipse.rx, ellipse.ry, ellipse.rotation, ellipse.start, ellipse.end);
+            this.ctx.stroke();
+        }
+
+        const sweepAlpha = 0.018 + this.currentEnergy * 0.018;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = `rgba(86, 216, 255, ${sweepAlpha})`;
+        this.ctx.lineWidth = 0.36;
+        this.ctx.moveTo(this.cx - shellRx * 0.82, this.cy - shellRy * 0.34);
+        this.ctx.bezierCurveTo(
+            this.cx - shellRx * 0.24,
+            this.cy - shellRy * 0.88,
+            this.cx + shellRx * 0.18,
+            this.cy + shellRy * 0.86,
+            this.cx + shellRx * 0.72,
+            this.cy + shellRy * 0.18
+        );
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
     drawCore(time) {
-        const coreRadius = this.baseRadius * (0.09 + this.currentSpread * 0.05 + this.currentEnergy * 0.09);
+        const coreRadius = this.baseRadius * (0.016 + this.currentSpread * 0.01 + this.currentEnergy * 0.032);
         const coreGradient = this.ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, coreRadius * 2.4);
-        coreGradient.addColorStop(0, 'rgba(232, 255, 255, 0.76)');
-        coreGradient.addColorStop(0.18, 'rgba(57, 231, 215, 0.42)');
-        coreGradient.addColorStop(0.5, 'rgba(88, 184, 255, 0.16)');
+        coreGradient.addColorStop(0, 'rgba(232, 255, 255, 0.28)');
+        coreGradient.addColorStop(0.18, 'rgba(57, 231, 215, 0.18)');
+        coreGradient.addColorStop(0.5, 'rgba(88, 184, 255, 0.06)');
         coreGradient.addColorStop(1, 'rgba(88, 184, 255, 0)');
 
         this.ctx.save();
@@ -357,12 +430,12 @@ class MichaelParticleBurst {
         this.ctx.arc(this.cx, this.cy, coreRadius * 2.4, 0, Math.PI * 2);
         this.ctx.fill();
 
-        const ringCount = this.mode === 'thinking' ? 2 : 1;
+        const ringCount = this.mode === 'thinking' ? 1 : 0;
         for (let i = 0; i < ringCount; i += 1) {
             const ringRadius = coreRadius * (1.08 + i * 0.18 + Math.sin(time * (1.8 + i * 0.3)) * 0.02);
             this.ctx.beginPath();
-            this.ctx.strokeStyle = `rgba(112, 236, 255, ${0.028 + i * 0.016 + this.currentEnergy * 0.022})`;
-            this.ctx.lineWidth = i === 0 ? 0.72 : 0.42;
+            this.ctx.strokeStyle = `rgba(112, 236, 255, ${0.018 + i * 0.01 + this.currentEnergy * 0.014})`;
+            this.ctx.lineWidth = 0.46;
             this.ctx.arc(this.cx, this.cy, ringRadius, time * 0.3 + i, time * 0.3 + i + Math.PI * 1.35);
             this.ctx.stroke();
         }
@@ -372,6 +445,7 @@ class MichaelParticleBurst {
 
     draw(time) {
         this.drawBackground();
+        this.drawScaffold(time);
         this.drawShockwaves();
         this.drawCore(time);
 
@@ -413,13 +487,13 @@ class MichaelParticleBurst {
             this.ctx.fill();
         }
 
-        this.ctx.shadowColor = 'rgba(88, 184, 255, 0.28)';
+        this.ctx.shadowColor = 'rgba(88, 184, 255, 0.16)';
         for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
             const point = projected[i];
             const glowRadius = point.size * (0.24 + point.scale * 0.18) * (0.72 + this.currentEnergy * 0.12);
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(140, 255, 183, ${point.alpha * 0.1})`;
-            this.ctx.shadowBlur = 1.8 + point.scale * 1.8 + this.currentEnergy * 2.2;
+            this.ctx.fillStyle = `rgba(140, 255, 183, ${point.alpha * 0.05})`;
+            this.ctx.shadowBlur = 1.2 + point.scale * 1.1 + this.currentEnergy * 1.4;
             this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
             this.ctx.fill();
         }
@@ -438,24 +512,24 @@ class MichaelParticleBurst {
 
         const targets = {
             idle: {
-                spread: 0.165,
+                spread: 0.48,
                 spin: 0.0024,
-                lineAlpha: 0.1,
-                jitter: 0.038,
+                lineAlpha: 0.072,
+                jitter: 0.026,
                 halo: 0.14
             },
             thinking: {
-                spread: 0.265,
+                spread: 0.58,
                 spin: 0.092,
-                lineAlpha: 0.19,
-                jitter: 0.11,
+                lineAlpha: 0.12,
+                jitter: 0.05,
                 halo: 0.22
             },
             speaking: {
-                spread: 0.094 + this.currentEnergy * 0.39,
+                spread: 0.34 + this.currentEnergy * 0.46,
                 spin: 0.009 + this.currentEnergy * 0.02,
-                lineAlpha: 0.06 + this.currentEnergy * 0.22,
-                jitter: 0.024 + this.currentEnergy * 0.14,
+                lineAlpha: 0.05 + this.currentEnergy * 0.18,
+                jitter: 0.02 + this.currentEnergy * 0.08,
                 halo: 0.16 + this.currentEnergy * 0.18
             }
         }[this.mode];
