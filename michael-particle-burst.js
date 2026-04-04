@@ -47,6 +47,7 @@ class MichaelParticleBurst {
         this.shockwaves = [];
         this.speechEnvelope = 0;
         this.transientBoost = 0;
+        this.colorCache = new Map();
 
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'michael-particle-burst-canvas';
@@ -263,6 +264,39 @@ class MichaelParticleBurst {
         return current + (target - current) * amount;
     }
 
+    getRgb(hex) {
+        if (this.colorCache.has(hex)) {
+            return this.colorCache.get(hex);
+        }
+
+        const normalized = hex.replace('#', '');
+        const value = normalized.length === 3
+            ? normalized.split('').map((char) => char + char).join('')
+            : normalized;
+        const rgb = {
+            r: parseInt(value.slice(0, 2), 16),
+            g: parseInt(value.slice(2, 4), 16),
+            b: parseInt(value.slice(4, 6), 16)
+        };
+        this.colorCache.set(hex, rgb);
+        return rgb;
+    }
+
+    rgba(hex, alpha) {
+        const { r, g, b } = this.getRgb(hex);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    mixRgba(hexA, hexB, mix, alpha) {
+        const a = this.getRgb(hexA);
+        const b = this.getRgb(hexB);
+        const t = Math.max(0, Math.min(1, mix));
+        const r = Math.round(a.r + (b.r - a.r) * t);
+        const g = Math.round(a.g + (b.g - a.g) * t);
+        const blue = Math.round(a.b + (b.b - a.b) * t);
+        return `rgba(${r}, ${g}, ${blue}, ${alpha})`;
+    }
+
     rotatePoint(point, time) {
         const jitterAmount = this.currentJitter * 0.18;
         const pulse = Math.sin(time * point.drift + point.phase) * 0.03;
@@ -345,7 +379,8 @@ class MichaelParticleBurst {
     drawScaffold(time) {
         const shellRx = this.baseRadius * (0.92 + this.currentSpread * 0.24);
         const shellRy = this.baseRadius * (1.08 + this.currentSpread * 0.22);
-        const shellAlpha = 0.045 + this.currentEnergy * 0.03;
+        const rise = Math.min(1, this.currentEnergy * 0.9 + this.transientBoost * 2.4);
+        const shellAlpha = 0.032 + rise * 0.092;
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -357,7 +392,7 @@ class MichaelParticleBurst {
                 rotation: -0.08 + this.rotationZ * 0.12,
                 start: -1.55,
                 end: 1.55,
-                stroke: `rgba(86, 216, 255, ${shellAlpha})`,
+                stroke: this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.36 + rise * 0.3, shellAlpha),
                 width: 0.82
             },
             {
@@ -366,7 +401,7 @@ class MichaelParticleBurst {
                 rotation: 0.22 + this.rotationX * 0.18,
                 start: 0.18,
                 end: Math.PI - 0.18,
-                stroke: `rgba(57, 231, 215, ${0.038 + this.currentEnergy * 0.026})`,
+                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, rise * 0.42, 0.026 + rise * 0.07),
                 width: 0.68
             },
             {
@@ -375,7 +410,7 @@ class MichaelParticleBurst {
                 rotation: -0.72 + this.rotationY * 0.08,
                 start: -1.2,
                 end: 2.05,
-                stroke: `rgba(112, 236, 255, ${0.032 + this.currentEnergy * 0.024})`,
+                stroke: this.mixRgba(this.options.palette.ember, this.options.palette.core, 0.34 + rise * 0.2, 0.024 + rise * 0.058),
                 width: 0.54
             },
             {
@@ -384,7 +419,7 @@ class MichaelParticleBurst {
                 rotation: -0.2 - this.rotationZ * 0.08,
                 start: Math.PI + 0.2,
                 end: Math.PI * 2 - 0.22,
-                stroke: `rgba(140, 255, 183, ${0.022 + this.currentEnergy * 0.016})`,
+                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.56 + rise * 0.24, 0.012 + rise * 0.04),
                 width: 0.44
             }
         ];
@@ -397,9 +432,9 @@ class MichaelParticleBurst {
             this.ctx.stroke();
         }
 
-        const sweepAlpha = 0.018 + this.currentEnergy * 0.018;
+        const sweepAlpha = 0.012 + rise * 0.042;
         this.ctx.beginPath();
-        this.ctx.strokeStyle = `rgba(86, 216, 255, ${sweepAlpha})`;
+        this.ctx.strokeStyle = this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.42 + rise * 0.26, sweepAlpha);
         this.ctx.lineWidth = 0.36;
         this.ctx.moveTo(this.cx - shellRx * 0.82, this.cy - shellRy * 0.34);
         this.ctx.bezierCurveTo(
@@ -416,12 +451,13 @@ class MichaelParticleBurst {
     }
 
     drawCore(time) {
+        const rise = Math.min(1, this.currentEnergy * 0.86 + this.transientBoost * 2.1);
         const coreRadius = this.baseRadius * (0.016 + this.currentSpread * 0.01 + this.currentEnergy * 0.032);
         const coreGradient = this.ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, coreRadius * 2.4);
-        coreGradient.addColorStop(0, 'rgba(232, 255, 255, 0.28)');
-        coreGradient.addColorStop(0.18, 'rgba(57, 231, 215, 0.18)');
-        coreGradient.addColorStop(0.5, 'rgba(88, 184, 255, 0.06)');
-        coreGradient.addColorStop(1, 'rgba(88, 184, 255, 0)');
+        coreGradient.addColorStop(0, this.rgba(this.options.palette.core, 0.12 + rise * 0.16));
+        coreGradient.addColorStop(0.18, this.mixRgba(this.options.palette.hot, this.options.palette.core, 0.4, 0.06 + rise * 0.12));
+        coreGradient.addColorStop(0.5, this.rgba(this.options.palette.ember, 0.02 + rise * 0.05));
+        coreGradient.addColorStop(1, this.rgba(this.options.palette.ember, 0));
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -430,11 +466,11 @@ class MichaelParticleBurst {
         this.ctx.arc(this.cx, this.cy, coreRadius * 2.4, 0, Math.PI * 2);
         this.ctx.fill();
 
-        const ringCount = this.mode === 'thinking' ? 1 : 0;
+        const ringCount = this.mode === 'thinking' ? 1 : (rise > 0.36 ? 1 : 0);
         for (let i = 0; i < ringCount; i += 1) {
             const ringRadius = coreRadius * (1.08 + i * 0.18 + Math.sin(time * (1.8 + i * 0.3)) * 0.02);
             this.ctx.beginPath();
-            this.ctx.strokeStyle = `rgba(112, 236, 255, ${0.018 + i * 0.01 + this.currentEnergy * 0.014})`;
+            this.ctx.strokeStyle = this.mixRgba(this.options.palette.ember, this.options.palette.spark, rise * 0.34, 0.01 + rise * 0.04);
             this.ctx.lineWidth = 0.46;
             this.ctx.arc(this.cx, this.cy, ringRadius, time * 0.3 + i, time * 0.3 + i + Math.PI * 1.35);
             this.ctx.stroke();
@@ -450,6 +486,7 @@ class MichaelParticleBurst {
         this.drawCore(time);
 
         const projected = this.particles.map((particle) => this.rotatePoint(particle, time));
+        const rise = Math.min(1, this.currentEnergy * 0.9 + this.transientBoost * 2.5);
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -465,9 +502,15 @@ class MichaelParticleBurst {
                 const maxDistance = this.baseRadius * (0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
-                const alpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha);
-                this.ctx.strokeStyle = `rgba(86, 216, 255, ${alpha})`;
-                this.ctx.lineWidth = 0.34 + this.currentEnergy * 0.28;
+                const alpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha) * (0.62 + rise * 1.3);
+                const filamentMix = Math.max(from.filament || 0, to.filament || 0);
+                this.ctx.strokeStyle = this.mixRgba(
+                    this.options.palette.ember,
+                    filamentMix > 0.62 ? this.options.palette.spark : this.options.palette.hot,
+                    0.34 + rise * 0.42,
+                    alpha
+                );
+                this.ctx.lineWidth = 0.3 + this.currentEnergy * 0.22 + rise * 0.12;
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
                 this.ctx.lineTo(to.sx, to.sy);
@@ -479,21 +522,27 @@ class MichaelParticleBurst {
 
         for (const point of projected) {
             const radius = point.size * (0.34 + point.scale * 0.42) * (0.88 + this.currentEnergy * 0.2 + point.filament * this.currentEnergy * 0.14);
+            const pointAlpha = point.alpha * (0.44 + rise * 0.54 + point.filament * rise * 0.18);
 
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(232, 255, 255, ${point.alpha * (0.7 + point.filament * 0.14)})`;
+            this.ctx.fillStyle = this.mixRgba(
+                this.options.palette.core,
+                point.filament > 0.68 ? this.options.palette.spark : this.options.palette.hot,
+                rise * (0.12 + point.filament * 0.16),
+                pointAlpha
+            );
             this.ctx.shadowBlur = 0;
             this.ctx.arc(point.sx, point.sy, radius, 0, Math.PI * 2);
             this.ctx.fill();
         }
 
-        this.ctx.shadowColor = 'rgba(88, 184, 255, 0.16)';
+        this.ctx.shadowColor = this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.42 + rise * 0.26, 0.18 + rise * 0.1);
         for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
             const point = projected[i];
             const glowRadius = point.size * (0.24 + point.scale * 0.18) * (0.72 + this.currentEnergy * 0.12);
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(140, 255, 183, ${point.alpha * 0.05})`;
-            this.ctx.shadowBlur = 1.2 + point.scale * 1.1 + this.currentEnergy * 1.4;
+            this.ctx.fillStyle = this.mixRgba(this.options.palette.hot, this.options.palette.spark, rise * 0.3, point.alpha * (0.02 + rise * 0.08));
+            this.ctx.shadowBlur = 0.8 + point.scale * 0.8 + rise * 3.2;
             this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
             this.ctx.fill();
         }
@@ -508,7 +557,7 @@ class MichaelParticleBurst {
         this.lastFrame = now;
 
         const sampledEnergy = this.getEnergy(now);
-        this.currentEnergy = this.lerp(this.currentEnergy, sampledEnergy, sampledEnergy > this.currentEnergy ? 0.34 : 0.16);
+        this.currentEnergy = this.lerp(this.currentEnergy, sampledEnergy, sampledEnergy > this.currentEnergy ? 0.42 : 0.24);
 
         const targets = {
             idle: {
@@ -526,19 +575,19 @@ class MichaelParticleBurst {
                 halo: 0.22
             },
             speaking: {
-                spread: 0.34 + this.currentEnergy * 0.46,
+                spread: 0.24 + this.currentEnergy * 0.62 + this.transientBoost * 0.18,
                 spin: 0.009 + this.currentEnergy * 0.02,
-                lineAlpha: 0.05 + this.currentEnergy * 0.18,
+                lineAlpha: 0.06 + this.currentEnergy * 0.28 + this.transientBoost * 0.08,
                 jitter: 0.02 + this.currentEnergy * 0.08,
                 halo: 0.16 + this.currentEnergy * 0.18
             }
         }[this.mode];
 
-        this.currentSpread = this.lerp(this.currentSpread, targets.spread, 0.08);
-        this.currentSpin = this.lerp(this.currentSpin, targets.spin, 0.08);
-        this.currentLineAlpha = this.lerp(this.currentLineAlpha, targets.lineAlpha, 0.08);
-        this.currentJitter = this.lerp(this.currentJitter, targets.jitter, 0.08);
-        this.currentHalo = this.lerp(this.currentHalo, targets.halo, 0.08);
+        this.currentSpread = this.lerp(this.currentSpread, targets.spread, targets.spread > this.currentSpread ? 0.14 : 0.22);
+        this.currentSpin = this.lerp(this.currentSpin, targets.spin, targets.spin > this.currentSpin ? 0.12 : 0.18);
+        this.currentLineAlpha = this.lerp(this.currentLineAlpha, targets.lineAlpha, targets.lineAlpha > this.currentLineAlpha ? 0.14 : 0.24);
+        this.currentJitter = this.lerp(this.currentJitter, targets.jitter, targets.jitter > this.currentJitter ? 0.12 : 0.2);
+        this.currentHalo = this.lerp(this.currentHalo, targets.halo, targets.halo > this.currentHalo ? 0.1 : 0.18);
 
         const spinMultiplier = this.mode === 'thinking' ? 2.4 : 1;
         this.rotationY += this.currentSpin * (elapsed / 16.666) * spinMultiplier;
