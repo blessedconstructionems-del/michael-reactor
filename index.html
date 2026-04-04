@@ -7,14 +7,14 @@
     <style>
         :root {
             --bg: #000000;
-            --panel: rgba(10, 5, 2, 0.82);
-            --line: rgba(255, 182, 92, 0.18);
-            --line-strong: rgba(255, 207, 126, 0.42);
-            --text: #fff5df;
-            --muted: rgba(255, 230, 186, 0.66);
-            --hot: #ff991f;
-            --gold: #ffd16c;
-            --cream: #fff7d7;
+            --panel: rgba(4, 10, 18, 0.84);
+            --line: rgba(88, 184, 255, 0.2);
+            --line-strong: rgba(88, 231, 215, 0.42);
+            --text: #eafcff;
+            --muted: rgba(176, 236, 248, 0.66);
+            --hot: #39e7d7;
+            --gold: #58b8ff;
+            --cream: #f2ffff;
         }
 
         * { box-sizing: border-box; }
@@ -47,7 +47,7 @@
             border: 1px solid var(--line);
             border-radius: 16px;
             color: var(--text);
-            background: rgba(255, 164, 64, 0.08);
+            background: rgba(57, 231, 215, 0.08);
             padding: 12px 16px;
             cursor: pointer;
             transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
@@ -56,13 +56,13 @@
         .boot-btn:hover, .dock-btn:hover, .mode-chip:hover {
             transform: translateY(-1px);
             border-color: var(--line-strong);
-            background: rgba(255, 172, 78, 0.15);
-            box-shadow: 0 0 24px rgba(255, 149, 28, 0.14);
+            background: rgba(88, 184, 255, 0.14);
+            box-shadow: 0 0 24px rgba(88, 184, 255, 0.14);
         }
 
         .boot-btn.primary, .dock-btn.primary {
-            background: linear-gradient(135deg, rgba(255, 211, 120, 0.32), rgba(255, 110, 18, 0.34));
-            border-color: rgba(255, 208, 126, 0.4);
+            background: linear-gradient(135deg, rgba(57, 231, 215, 0.26), rgba(88, 184, 255, 0.28));
+            border-color: rgba(141, 238, 255, 0.38);
         }
 
         .reactor-hud {
@@ -97,8 +97,8 @@
             width: fit-content;
             padding: 10px 14px;
             border-radius: 999px;
-            border: 1px solid rgba(255, 191, 110, 0.16);
-            background: rgba(9, 4, 2, 0.84);
+            border: 1px solid rgba(88, 184, 255, 0.16);
+            background: rgba(4, 10, 18, 0.84);
             color: var(--muted);
             pointer-events: auto;
         }
@@ -133,8 +133,8 @@
             width: min(410px, calc(100vw - 36px));
             padding: 18px;
             border-radius: 28px;
-            border: 1px solid rgba(255, 190, 108, 0.14);
-            background: linear-gradient(180deg, rgba(10, 5, 2, 0.92), rgba(5, 2, 1, 0.98));
+            border: 1px solid rgba(88, 184, 255, 0.14);
+            background: linear-gradient(180deg, rgba(4, 10, 18, 0.92), rgba(1, 5, 12, 0.98));
             box-shadow: 0 18px 60px rgba(0, 0, 0, 0.46);
             pointer-events: auto;
         }
@@ -169,7 +169,7 @@
             min-height: 116px;
             padding: 14px 16px;
             border-radius: 18px;
-            border: 1px solid rgba(255, 188, 104, 0.12);
+            border: 1px solid rgba(88, 184, 255, 0.12);
             background: rgba(0, 0, 0, 0.72);
             color: var(--text);
             resize: vertical;
@@ -179,8 +179,8 @@
 
         .prompt-area:focus {
             outline: none;
-            border-color: rgba(255, 210, 128, 0.36);
-            box-shadow: 0 0 0 3px rgba(255, 149, 28, 0.12);
+            border-color: rgba(88, 231, 215, 0.36);
+            box-shadow: 0 0 0 3px rgba(57, 231, 215, 0.12);
         }
 
         .dock-actions, .mode-row {
@@ -191,8 +191,8 @@
         }
 
         .mode-chip.active {
-            background: linear-gradient(135deg, rgba(255, 206, 122, 0.26), rgba(255, 104, 18, 0.22));
-            border-color: rgba(255, 207, 126, 0.4);
+            background: linear-gradient(135deg, rgba(88, 184, 255, 0.24), rgba(57, 231, 215, 0.18));
+            border-color: rgba(141, 238, 255, 0.36);
         }
 
         .slider-row {
@@ -217,7 +217,7 @@
             margin-top: 10px;
             padding: 14px 16px;
             border-radius: 18px;
-            border: 1px solid rgba(255, 188, 104, 0.1);
+            border: 1px solid rgba(88, 184, 255, 0.1);
             background: rgba(0, 0, 0, 0.56);
         }
 
@@ -243,8 +243,8 @@
             max-width: min(560px, calc(100vw - 470px));
             padding: 14px 16px;
             border-radius: 20px;
-            border: 1px solid rgba(255, 188, 104, 0.12);
-            background: rgba(8, 3, 1, 0.88);
+            border: 1px solid rgba(88, 184, 255, 0.12);
+            background: rgba(3, 8, 16, 0.9);
             pointer-events: auto;
         }
 

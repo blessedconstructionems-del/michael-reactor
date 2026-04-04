@@ -15,11 +15,11 @@ class MichaelParticleBurst {
             glowStride: options.glowStride || 5,
             targetFps: options.targetFps || 48,
             palette: options.palette || {
-                core: '#ffd36b',
-                hot: '#ff9f1c',
-                ember: '#ff6b00',
-                spark: '#fff3bf',
-                smoke: 'rgba(255, 170, 60, 0.12)'
+                core: '#e8ffff',
+                hot: '#39e7d7',
+                ember: '#58b8ff',
+                spark: '#8cffb7',
+                smoke: 'rgba(88, 184, 255, 0.12)'
             }
         };
 
@@ -136,8 +136,8 @@ class MichaelParticleBurst {
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         this.cx = this.width / 2;
         this.cy = this.height / 2;
-        this.baseRadius = Math.min(this.width, this.height) * 0.29;
-        this.focalLength = Math.min(this.width, this.height) * 1.3;
+        this.baseRadius = Math.min(this.width, this.height) * 0.34;
+        this.focalLength = Math.min(this.width, this.height) * 1.16;
     }
 
     setMode(mode) {
@@ -333,7 +333,7 @@ class MichaelParticleBurst {
                 continue;
             }
             this.ctx.beginPath();
-            this.ctx.strokeStyle = `rgba(255, 189, 86, ${wave.alpha})`;
+            this.ctx.strokeStyle = `rgba(92, 220, 255, ${wave.alpha})`;
             this.ctx.lineWidth = 0.9;
             this.ctx.arc(this.cx, this.cy, wave.radius, 0, Math.PI * 2);
             this.ctx.stroke();
@@ -345,10 +345,10 @@ class MichaelParticleBurst {
     drawCore(time) {
         const coreRadius = this.baseRadius * (0.09 + this.currentSpread * 0.05 + this.currentEnergy * 0.09);
         const coreGradient = this.ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, coreRadius * 2.4);
-        coreGradient.addColorStop(0, 'rgba(255, 245, 198, 0.72)');
-        coreGradient.addColorStop(0.18, 'rgba(255, 188, 96, 0.42)');
-        coreGradient.addColorStop(0.5, 'rgba(255, 110, 20, 0.12)');
-        coreGradient.addColorStop(1, 'rgba(255, 110, 20, 0)');
+        coreGradient.addColorStop(0, 'rgba(232, 255, 255, 0.76)');
+        coreGradient.addColorStop(0.18, 'rgba(57, 231, 215, 0.42)');
+        coreGradient.addColorStop(0.5, 'rgba(88, 184, 255, 0.16)');
+        coreGradient.addColorStop(1, 'rgba(88, 184, 255, 0)');
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -361,7 +361,7 @@ class MichaelParticleBurst {
         for (let i = 0; i < ringCount; i += 1) {
             const ringRadius = coreRadius * (1.08 + i * 0.18 + Math.sin(time * (1.8 + i * 0.3)) * 0.02);
             this.ctx.beginPath();
-            this.ctx.strokeStyle = `rgba(255, 180, 72, ${0.028 + i * 0.016 + this.currentEnergy * 0.022})`;
+            this.ctx.strokeStyle = `rgba(112, 236, 255, ${0.028 + i * 0.016 + this.currentEnergy * 0.022})`;
             this.ctx.lineWidth = i === 0 ? 0.72 : 0.42;
             this.ctx.arc(this.cx, this.cy, ringRadius, time * 0.3 + i, time * 0.3 + i + Math.PI * 1.35);
             this.ctx.stroke();
@@ -392,7 +392,7 @@ class MichaelParticleBurst {
                 if (distance > maxDistance) continue;
 
                 const alpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha);
-                this.ctx.strokeStyle = `rgba(255, 190, 92, ${alpha})`;
+                this.ctx.strokeStyle = `rgba(86, 216, 255, ${alpha})`;
                 this.ctx.lineWidth = 0.34 + this.currentEnergy * 0.28;
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
@@ -407,18 +407,18 @@ class MichaelParticleBurst {
             const radius = point.size * (0.34 + point.scale * 0.42) * (0.88 + this.currentEnergy * 0.2 + point.filament * this.currentEnergy * 0.14);
 
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(255, 248, 224, ${point.alpha * (0.7 + point.filament * 0.14)})`;
+            this.ctx.fillStyle = `rgba(232, 255, 255, ${point.alpha * (0.7 + point.filament * 0.14)})`;
             this.ctx.shadowBlur = 0;
             this.ctx.arc(point.sx, point.sy, radius, 0, Math.PI * 2);
             this.ctx.fill();
         }
 
-        this.ctx.shadowColor = 'rgba(255, 160, 64, 0.34)';
+        this.ctx.shadowColor = 'rgba(88, 184, 255, 0.28)';
         for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
             const point = projected[i];
             const glowRadius = point.size * (0.24 + point.scale * 0.18) * (0.72 + this.currentEnergy * 0.12);
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(255, 214, 156, ${point.alpha * 0.14})`;
+            this.ctx.fillStyle = `rgba(140, 255, 183, ${point.alpha * 0.1})`;
             this.ctx.shadowBlur = 1.8 + point.scale * 1.8 + this.currentEnergy * 2.2;
             this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
             this.ctx.fill();
