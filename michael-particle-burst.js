@@ -48,6 +48,9 @@ class MichaelParticleBurst {
         this.speechEnvelope = 0;
         this.transientBoost = 0;
         this.colorCache = new Map();
+        this.veinPaths = [];
+        this.lightBeads = [];
+        this.lastPulseAt = 0;
 
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'michael-particle-burst-canvas';
@@ -65,6 +68,7 @@ class MichaelParticleBurst {
         this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true }) || this.canvas.getContext('2d');
 
         this.particles = this.buildParticles(this.options.particleCount);
+        this.veinPaths = this.buildVeinPaths();
         this.resize();
         this.attachResizeObserver();
         this.loop = this.loop.bind(this);
@@ -111,6 +115,122 @@ class MichaelParticleBurst {
         }
 
         return particles;
+    }
+
+    buildVeinPaths() {
+        const paths = [];
+        const signatures = new Set();
+        const seeds = this.particles
+            .map((particle, index) => ({ index, filament: particle.filament }))
+            .filter(({ filament }) => filament > 0.54)
+            .sort((a, b) => b.filament - a.filament)
+            .slice(0, Math.max(12, Math.round(this.particles.length * 0.18)));
+
+        const scoreLink = (fromIndex, toIndex, prevIndex) => {
+            const from = this.particles[fromIndex];
+            const to = this.particles[toIndex];
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const dz = to.z - from.z;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            const filamentMix = (from.filament + to.filament) * 0.5;
+            let continuation = 0.72;
+
+            if (prevIndex !== null && prevIndex !== undefined) {
+                const prev = this.particles[prevIndex];
+                const pdx = from.x - prev.x;
+                const pdy = from.y - prev.y;
+                const pdz = from.z - prev.z;
+                const prevLength = Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz) || 1;
+                continuation = Math.max(0.26, ((pdx * dx + pdy * dy + pdz * dz) / (prevLength * Math.max(distance, 0.0001))) * 0.5 + 0.5);
+            }
+
+            return filamentMix * 1.86 + distance * 0.72 + continuation * 0.84;
+        };
+
+        for (const seed of seeds) {
+            const path = [seed.index];
+            const used = new Set(path);
+            let currentIndex = seed.index;
+            let prevIndex = null;
+            const maxSteps = 3 + Math.round(this.particles[seed.index].filament * 3);
+
+            for (let step = 0; step < maxSteps; step += 1) {
+                const next = this.particles[currentIndex].links
+                    .map((index) => ({
+                        index,
+                        score: scoreLink(currentIndex, index, prevIndex)
+                    }))
+                    .filter(({ index }) => !used.has(index) && this.particles[index].filament > 0.32)
+                    .sort((a, b) => b.score - a.score)[0];
+
+                if (!next || next.score < 1.38) break;
+                path.push(next.index);
+                used.add(next.index);
+                prevIndex = currentIndex;
+                currentIndex = next.index;
+            }
+
+            if (path.length < 3) continue;
+
+            const signature = path.slice().sort((a, b) => a - b).join(':');
+            if (signatures.has(signature)) continue;
+            signatures.add(signature);
+
+            const strength = path.reduce((sum, index) => sum + this.particles[index].filament, 0) / path.length;
+            paths.push({
+                points: path,
+                signature,
+                strength
+            });
+        }
+
+        return paths
+            .sort((a, b) => b.strength - a.strength)
+            .slice(0, Math.max(12, Math.round(this.particles.length * 0.12)));
+    }
+
+    spawnLightBeads(intensity) {
+        if (!this.veinPaths.length) return;
+
+        const laneCount = intensity > 0.18 ? 2 : 1;
+        const picks = new Set();
+
+        for (let i = 0; i < laneCount; i += 1) {
+            let path = null;
+
+            for (let attempts = 0; attempts < 8; attempts += 1) {
+                const candidate = this.veinPaths[Math.floor(Math.random() * Math.min(this.veinPaths.length, 8))];
+                if (!candidate || picks.has(candidate.signature)) continue;
+                path = candidate;
+                picks.add(candidate.signature);
+                break;
+            }
+
+            if (!path) continue;
+
+            this.lightBeads.push({
+                path: path.points,
+                progress: -Math.random() * 0.16,
+                speed: 0.03 + intensity * 0.05 + Math.random() * 0.012,
+                width: 0.9 + path.strength * 0.9 + intensity * 1.1,
+                alpha: 0.34 + intensity * 0.56,
+                tail: 0.16 + path.strength * 0.1 + intensity * 0.12,
+                mix: 0.28 + Math.random() * 0.34
+            });
+        }
+
+        if (this.lightBeads.length > 16) {
+            this.lightBeads.splice(0, this.lightBeads.length - 16);
+        }
+    }
+
+    updateLightBeads(elapsed) {
+        this.lightBeads = this.lightBeads.filter((pulse) => {
+            pulse.progress += pulse.speed * (elapsed / 16.666);
+            pulse.alpha *= 0.996;
+            return pulse.progress < 1.18 && pulse.alpha > 0.05;
+        });
     }
 
     attachResizeObserver() {
@@ -479,6 +599,104 @@ class MichaelParticleBurst {
         this.ctx.restore();
     }
 
+    drawLightBeads(projected, rise) {
+        if (!this.lightBeads.length) return;
+
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'screen';
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        for (const pulse of this.lightBeads) {
+            const points = pulse.path.map((index) => projected[index]).filter(Boolean);
+            if (points.length < 2) continue;
+
+            const segments = [];
+            let totalLength = 0;
+
+            for (let i = 0; i < points.length - 1; i += 1) {
+                const from = points[i];
+                const to = points[i + 1];
+                const length = Math.hypot(to.sx - from.sx, to.sy - from.sy);
+                if (length < 0.5) continue;
+                segments.push({
+                    from,
+                    to,
+                    length,
+                    start: totalLength,
+                    end: totalLength + length
+                });
+                totalLength += length;
+            }
+
+            if (totalLength < 22) continue;
+
+            const headDistance = totalLength * pulse.progress;
+            const tailDistance = Math.max(totalLength * pulse.tail, this.baseRadius * 0.08);
+
+            for (const segment of segments) {
+                const visibleStart = Math.max(segment.start, headDistance - tailDistance);
+                const visibleEnd = Math.min(segment.end, headDistance);
+                if (visibleEnd <= visibleStart) continue;
+
+                const startT = (visibleStart - segment.start) / segment.length;
+                const endT = (visibleEnd - segment.start) / segment.length;
+                const sx = segment.from.sx + (segment.to.sx - segment.from.sx) * startT;
+                const sy = segment.from.sy + (segment.to.sy - segment.from.sy) * startT;
+                const ex = segment.from.sx + (segment.to.sx - segment.from.sx) * endT;
+                const ey = segment.from.sy + (segment.to.sy - segment.from.sy) * endT;
+                const trailStart = Math.max(0, 1 - (headDistance - visibleStart) / tailDistance);
+                const trailEnd = Math.max(0, 1 - (headDistance - visibleEnd) / tailDistance);
+                const gradient = this.ctx.createLinearGradient(sx, sy, ex, ey);
+
+                gradient.addColorStop(0, this.mixRgba(
+                    this.options.palette.ember,
+                    this.options.palette.hot,
+                    pulse.mix + rise * 0.12,
+                    pulse.alpha * (0.04 + trailStart * 0.2)
+                ));
+                gradient.addColorStop(1, this.mixRgba(
+                    this.options.palette.hot,
+                    this.options.palette.spark,
+                    0.52 + rise * 0.22,
+                    pulse.alpha * (0.16 + trailEnd * 0.72)
+                ));
+
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 0.44 + pulse.width * (0.62 + trailEnd * 0.5);
+                this.ctx.beginPath();
+                this.ctx.moveTo(sx, sy);
+                this.ctx.lineTo(ex, ey);
+                this.ctx.stroke();
+            }
+
+            if (headDistance <= 0) continue;
+
+            let headPoint = null;
+            for (const segment of segments) {
+                if (headDistance > segment.end) continue;
+                const t = Math.max(0, Math.min(1, (headDistance - segment.start) / segment.length));
+                headPoint = {
+                    x: segment.from.sx + (segment.to.sx - segment.from.sx) * t,
+                    y: segment.from.sy + (segment.to.sy - segment.from.sy) * t
+                };
+                break;
+            }
+
+            if (!headPoint) continue;
+
+            this.ctx.shadowColor = this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.66 + rise * 0.18, 0.38 + pulse.alpha * 0.42);
+            this.ctx.shadowBlur = 6 + pulse.width * 4 + rise * 4;
+            this.ctx.beginPath();
+            this.ctx.fillStyle = this.mixRgba(this.options.palette.core, this.options.palette.spark, 0.62 + rise * 0.22, 0.72 + pulse.alpha * 0.2);
+            this.ctx.arc(headPoint.x, headPoint.y, 1.05 + pulse.width * 0.72 + rise * 0.34, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        this.ctx.shadowBlur = 0;
+        this.ctx.restore();
+    }
+
     draw(time) {
         this.drawBackground();
         this.drawScaffold(time);
@@ -502,21 +720,27 @@ class MichaelParticleBurst {
                 const maxDistance = this.baseRadius * (0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
-                const alpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha) * (0.62 + rise * 1.3);
                 const filamentMix = Math.max(from.filament || 0, to.filament || 0);
+                const baseAlpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha) * (0.62 + rise * 1.3);
+                const stringBoost = this.mode === 'speaking'
+                    ? 1.02 + filamentMix * (1.4 + rise * 2.2)
+                    : 0.94 + filamentMix * 0.52;
+                const alpha = Math.min(0.94, baseAlpha * stringBoost);
                 this.ctx.strokeStyle = this.mixRgba(
                     this.options.palette.ember,
                     filamentMix > 0.62 ? this.options.palette.spark : this.options.palette.hot,
-                    0.34 + rise * 0.42,
+                    0.42 + rise * 0.46,
                     alpha
                 );
-                this.ctx.lineWidth = 0.3 + this.currentEnergy * 0.22 + rise * 0.12;
+                this.ctx.lineWidth = 0.26 + filamentMix * (0.18 + rise * 0.28) + this.currentEnergy * 0.16 + rise * 0.12;
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
                 this.ctx.lineTo(to.sx, to.sy);
                 this.ctx.stroke();
             }
         }
+
+        this.drawLightBeads(projected, rise);
 
         projected.sort((a, b) => a.z - b.z);
 
@@ -558,6 +782,11 @@ class MichaelParticleBurst {
 
         const sampledEnergy = this.getEnergy(now);
         this.currentEnergy = this.lerp(this.currentEnergy, sampledEnergy, sampledEnergy > this.currentEnergy ? 0.42 : 0.24);
+        if (this.mode === 'speaking' && this.transientBoost > 0.035 && now - this.lastPulseAt > 48) {
+            this.spawnLightBeads(Math.min(1, this.currentEnergy * 0.7 + this.transientBoost * 2.6));
+            this.lastPulseAt = now;
+        }
+        this.updateLightBeads(elapsed);
 
         const targets = {
             idle: {
