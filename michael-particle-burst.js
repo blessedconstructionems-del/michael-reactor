@@ -88,6 +88,8 @@ class MichaelParticleBurst {
                 phase: Math.random() * Math.PI * 2,
                 drift: 0.35 + Math.random() * 1.35,
                 depth: 0.75 + Math.random() * 0.35,
+                filament: Math.pow((Math.sin(theta * 3.2) * 0.5 + 0.5) * 0.72 + (Math.cos(y * Math.PI * 2.4) * 0.5 + 0.5) * 0.28, 2.2),
+                filamentPhase: Math.random() * Math.PI * 2,
                 links: []
             });
         }
@@ -264,7 +266,17 @@ class MichaelParticleBurst {
     rotatePoint(point, time) {
         const jitterAmount = this.currentJitter * 0.18;
         const pulse = Math.sin(time * point.drift + point.phase) * 0.03;
-        const shell = this.currentSpread + pulse + this.currentEnergy * 0.14 * Math.sin(time * 1.4 + point.phase);
+        let shell = this.currentSpread + pulse + this.currentEnergy * 0.14 * Math.sin(time * 1.4 + point.phase);
+
+        if (this.mode === 'speaking') {
+            const speechCompression = (1 - this.currentEnergy) * (0.052 + point.filament * 0.03);
+            const filamentWave = Math.max(0, Math.sin(time * 5.2 + point.filamentPhase + point.phase * 0.45));
+            const filamentBurst = point.filament * (this.currentEnergy * 0.18 + this.transientBoost * 0.52) * (0.45 + filamentWave);
+            shell = shell - speechCompression + filamentBurst;
+        } else if (this.mode === 'thinking') {
+            const filamentWave = Math.max(0, Math.sin(time * 4.0 + point.filamentPhase));
+            shell += point.filament * 0.05 * filamentWave;
+        }
 
         let x = point.x * shell * this.baseRadius * point.depth;
         let y = point.y * shell * this.baseRadius * point.depth;
@@ -434,10 +446,10 @@ class MichaelParticleBurst {
                 halo: 0.22
             },
             speaking: {
-                spread: 0.2 + this.currentEnergy * 0.23,
+                spread: 0.125 + this.currentEnergy * 0.35,
                 spin: 0.009 + this.currentEnergy * 0.02,
-                lineAlpha: 0.11 + this.currentEnergy * 0.2,
-                jitter: 0.05 + this.currentEnergy * 0.16,
+                lineAlpha: 0.08 + this.currentEnergy * 0.24,
+                jitter: 0.038 + this.currentEnergy * 0.19,
                 halo: 0.16 + this.currentEnergy * 0.18
             }
         }[this.mode];
