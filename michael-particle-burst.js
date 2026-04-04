@@ -517,9 +517,10 @@ class MichaelParticleBurst {
             filamentTension = point.filament * (0.26 + this.currentEnergy * 0.44 + this.transientBoost * 0.55);
         } else if (this.mode === 'idle') {
             const idleDrift = Math.sin(time * 1.55 + point.filamentPhase + point.phase * 0.3);
-            shell += point.filament * 0.042 * idleDrift;
-            shell += Math.sin(time * 0.9 + point.phase) * 0.016;
-            filamentTension = point.filament * 0.04;
+            shell -= 0.055 - point.filament * 0.016;
+            shell += point.filament * 0.052 * idleDrift;
+            shell += Math.sin(time * 0.9 + point.phase) * 0.012;
+            filamentTension = point.filament * 0.08;
         } else if (this.mode === 'thinking') {
             const filamentWave = Math.max(0, Math.sin(time * 4.0 + point.filamentPhase));
             shell += point.filament * 0.05 * filamentWave;
@@ -529,6 +530,23 @@ class MichaelParticleBurst {
         let x = point.x * shell * this.baseRadius * point.depth;
         let y = point.y * shell * this.baseRadius * point.depth;
         let z = point.z * shell * this.baseRadius * point.depth;
+
+        if (this.mode === 'idle') {
+            const twist = (
+                point.y * 0.92
+                + Math.sin(time * 0.7 + point.phase) * 0.32
+                + Math.sin(point.filamentPhase) * 0.22
+            ) * (0.42 + point.filament * 0.7);
+            const twistCos = Math.cos(twist);
+            const twistSin = Math.sin(twist);
+            const twistedX = x * twistCos - z * twistSin;
+            const twistedZ = z * twistCos + x * twistSin;
+            const curl = Math.sin(time * 1.08 + point.phase + point.filament * 3.2) * this.baseRadius * 0.028 * (0.4 + point.filament * 0.9);
+
+            x = twistedX + Math.sin(point.y * Math.PI * 2.1 + time * 0.62) * curl;
+            z = twistedZ + Math.cos(point.x * Math.PI * 1.8 + time * 0.56) * curl * 0.68;
+            y *= 0.82 + point.filament * 0.12;
+        }
 
         const wobbleScale = Math.max(0.22, 1 - filamentTension * 0.7);
         const wobble = Math.sin(time * 1.8 + point.twinkle) * jitterAmount * this.baseRadius * wobbleScale;
@@ -918,7 +936,7 @@ class MichaelParticleBurst {
 
         const projected = this.particles.map((particle) => this.rotatePoint(particle, time));
         const rise = Math.min(1, this.currentEnergy * 0.9 + this.transientBoost * 2.5);
-        const idleLift = this.mode === 'idle' ? 0.12 : 0;
+        const idleLift = this.mode === 'idle' ? 0.16 : 0;
         const thinkingLift = this.mode === 'thinking' ? 0.08 : 0;
 
         this.ctx.save();
@@ -933,7 +951,7 @@ class MichaelParticleBurst {
                 const to = projected[linkIndex];
                 const distance = Math.hypot(from.sx - to.sx, from.sy - to.sy);
                 const maxDistance = this.baseRadius * (this.mode === 'idle'
-                    ? 0.31 + this.currentSpread * 0.34
+                    ? 0.36 + this.currentSpread * 0.4
                     : 0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
@@ -942,7 +960,7 @@ class MichaelParticleBurst {
                 const stringBoost = this.mode === 'speaking'
                     ? 1.02 + filamentMix * (1.4 + rise * 2.2)
                     : (this.mode === 'idle'
-                        ? 1.18 + filamentMix * 1.02
+                        ? 1.34 + filamentMix * 1.28
                         : 1 + filamentMix * 0.64);
                 const alpha = Math.min(0.94, baseAlpha * stringBoost);
                 this.ctx.strokeStyle = this.mixRgba(
@@ -953,7 +971,9 @@ class MichaelParticleBurst {
                     this.mode === 'thinking' ? 0.18 + this.currentEnergy * 0.18 : 0.42 + rise * 0.46,
                     alpha
                 );
-                this.ctx.lineWidth = 0.24 + filamentMix * (this.mode === 'thinking' ? 0.14 : 0.18 + rise * 0.28) + this.currentEnergy * 0.16 + rise * (this.mode === 'thinking' ? 0.04 : 0.12);
+                this.ctx.lineWidth = this.mode === 'idle'
+                    ? 0.28 + filamentMix * 0.24
+                    : 0.24 + filamentMix * (this.mode === 'thinking' ? 0.14 : 0.18 + rise * 0.28) + this.currentEnergy * 0.16 + rise * (this.mode === 'thinking' ? 0.04 : 0.12);
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
                 this.ctx.lineTo(to.sx, to.sy);
@@ -1039,10 +1059,10 @@ class MichaelParticleBurst {
 
         const targets = {
             idle: {
-                spread: 0.48,
+                spread: 0.43,
                 spin: 0.0024,
-                lineAlpha: 0.094,
-                jitter: 0.026,
+                lineAlpha: 0.116,
+                jitter: 0.02,
                 halo: 0.165
             },
             thinking: {
