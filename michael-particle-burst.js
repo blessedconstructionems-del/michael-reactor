@@ -83,12 +83,12 @@ class MichaelParticleBurst {
                 x: Math.cos(theta) * radius,
                 y,
                 z: Math.sin(theta) * radius,
-                size: 0.8 + Math.random() * 2.6,
+                size: 0.28 + Math.pow(Math.random(), 2.9) * 1.35 + (Math.random() > 0.9 ? Math.random() * 0.42 : 0),
                 twinkle: Math.random() * Math.PI * 2,
                 phase: Math.random() * Math.PI * 2,
                 drift: 0.35 + Math.random() * 1.35,
                 depth: 0.75 + Math.random() * 0.35,
-                filament: Math.pow((Math.sin(theta * 3.2) * 0.5 + 0.5) * 0.72 + (Math.cos(y * Math.PI * 2.4) * 0.5 + 0.5) * 0.28, 2.2),
+                filament: Math.pow((Math.sin(theta * 3.2) * 0.5 + 0.5) * 0.72 + (Math.cos(y * Math.PI * 2.4) * 0.5 + 0.5) * 0.28, 3.6),
                 filamentPhase: Math.random() * Math.PI * 2,
                 links: []
             });
@@ -267,25 +267,29 @@ class MichaelParticleBurst {
         const jitterAmount = this.currentJitter * 0.18;
         const pulse = Math.sin(time * point.drift + point.phase) * 0.03;
         let shell = this.currentSpread + pulse + this.currentEnergy * 0.14 * Math.sin(time * 1.4 + point.phase);
+        let filamentTension = 0;
 
         if (this.mode === 'speaking') {
-            const speechCompression = (1 - this.currentEnergy) * (0.052 + point.filament * 0.03);
+            const speechCompression = (1 - this.currentEnergy) * (0.068 + point.filament * 0.038);
             const filamentWave = Math.max(0, Math.sin(time * 5.2 + point.filamentPhase + point.phase * 0.45));
-            const filamentBurst = point.filament * (this.currentEnergy * 0.18 + this.transientBoost * 0.52) * (0.45 + filamentWave);
+            const filamentBurst = point.filament * (this.currentEnergy * 0.26 + this.transientBoost * 0.88) * (0.38 + filamentWave * 0.92);
             shell = shell - speechCompression + filamentBurst;
+            filamentTension = point.filament * (0.26 + this.currentEnergy * 0.44 + this.transientBoost * 0.55);
         } else if (this.mode === 'thinking') {
             const filamentWave = Math.max(0, Math.sin(time * 4.0 + point.filamentPhase));
             shell += point.filament * 0.05 * filamentWave;
+            filamentTension = point.filament * 0.18;
         }
 
         let x = point.x * shell * this.baseRadius * point.depth;
         let y = point.y * shell * this.baseRadius * point.depth;
         let z = point.z * shell * this.baseRadius * point.depth;
 
-        const wobble = Math.sin(time * 1.8 + point.twinkle) * jitterAmount * this.baseRadius;
+        const wobbleScale = Math.max(0.22, 1 - filamentTension * 0.7);
+        const wobble = Math.sin(time * 1.8 + point.twinkle) * jitterAmount * this.baseRadius * wobbleScale;
         x += wobble * 0.7;
-        y += Math.cos(time * 1.4 + point.phase) * jitterAmount * this.baseRadius * 0.82;
-        z += Math.sin(time * 1.1 + point.phase) * jitterAmount * this.baseRadius * 0.72;
+        y += Math.cos(time * 1.4 + point.phase) * jitterAmount * this.baseRadius * 0.82 * wobbleScale;
+        z += Math.sin(time * 1.1 + point.phase) * jitterAmount * this.baseRadius * 0.72 * wobbleScale;
 
         const cosY = Math.cos(this.rotationY);
         const sinY = Math.sin(this.rotationY);
@@ -309,6 +313,8 @@ class MichaelParticleBurst {
             sy: this.cy + y2 * perspective,
             z: z2,
             scale: perspective,
+            size: point.size,
+            filament: point.filament,
             alpha: Math.max(0.12, 0.3 + ((z2 / (this.baseRadius * 1.6)) + 1) * 0.25)
         };
     }
@@ -339,9 +345,9 @@ class MichaelParticleBurst {
     drawCore(time) {
         const coreRadius = this.baseRadius * (0.09 + this.currentSpread * 0.05 + this.currentEnergy * 0.09);
         const coreGradient = this.ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, coreRadius * 2.4);
-        coreGradient.addColorStop(0, 'rgba(255, 245, 198, 0.92)');
-        coreGradient.addColorStop(0.18, 'rgba(255, 188, 96, 0.78)');
-        coreGradient.addColorStop(0.5, 'rgba(255, 110, 20, 0.34)');
+        coreGradient.addColorStop(0, 'rgba(255, 245, 198, 0.72)');
+        coreGradient.addColorStop(0.18, 'rgba(255, 188, 96, 0.42)');
+        coreGradient.addColorStop(0.5, 'rgba(255, 110, 20, 0.12)');
         coreGradient.addColorStop(1, 'rgba(255, 110, 20, 0)');
 
         this.ctx.save();
@@ -355,8 +361,8 @@ class MichaelParticleBurst {
         for (let i = 0; i < ringCount; i += 1) {
             const ringRadius = coreRadius * (1.08 + i * 0.18 + Math.sin(time * (1.8 + i * 0.3)) * 0.02);
             this.ctx.beginPath();
-            this.ctx.strokeStyle = `rgba(255, 180, 72, ${0.05 + i * 0.02 + this.currentEnergy * 0.04})`;
-            this.ctx.lineWidth = i === 0 ? 0.9 : 0.55;
+            this.ctx.strokeStyle = `rgba(255, 180, 72, ${0.028 + i * 0.016 + this.currentEnergy * 0.022})`;
+            this.ctx.lineWidth = i === 0 ? 0.72 : 0.42;
             this.ctx.arc(this.cx, this.cy, ringRadius, time * 0.3 + i, time * 0.3 + i + Math.PI * 1.35);
             this.ctx.stroke();
         }
@@ -398,22 +404,22 @@ class MichaelParticleBurst {
         projected.sort((a, b) => a.z - b.z);
 
         for (const point of projected) {
-            const radius = (0.62 + point.scale * 1.02) * (0.74 + this.currentEnergy * 0.46);
+            const radius = point.size * (0.34 + point.scale * 0.42) * (0.88 + this.currentEnergy * 0.2 + point.filament * this.currentEnergy * 0.14);
 
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(255, 248, 224, ${point.alpha * 0.88})`;
+            this.ctx.fillStyle = `rgba(255, 248, 224, ${point.alpha * (0.7 + point.filament * 0.14)})`;
             this.ctx.shadowBlur = 0;
             this.ctx.arc(point.sx, point.sy, radius, 0, Math.PI * 2);
             this.ctx.fill();
         }
 
-        this.ctx.shadowColor = 'rgba(255, 160, 64, 0.88)';
+        this.ctx.shadowColor = 'rgba(255, 160, 64, 0.34)';
         for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
             const point = projected[i];
-            const glowRadius = (0.48 + point.scale * 0.5) * (0.62 + this.currentEnergy * 0.24);
+            const glowRadius = point.size * (0.24 + point.scale * 0.18) * (0.72 + this.currentEnergy * 0.12);
             this.ctx.beginPath();
-            this.ctx.fillStyle = `rgba(255, 214, 156, ${point.alpha * 0.44})`;
-            this.ctx.shadowBlur = 4 + point.scale * 4 + this.currentEnergy * 5;
+            this.ctx.fillStyle = `rgba(255, 214, 156, ${point.alpha * 0.14})`;
+            this.ctx.shadowBlur = 1.8 + point.scale * 1.8 + this.currentEnergy * 2.2;
             this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
             this.ctx.fill();
         }
@@ -446,10 +452,10 @@ class MichaelParticleBurst {
                 halo: 0.22
             },
             speaking: {
-                spread: 0.125 + this.currentEnergy * 0.35,
+                spread: 0.094 + this.currentEnergy * 0.39,
                 spin: 0.009 + this.currentEnergy * 0.02,
-                lineAlpha: 0.08 + this.currentEnergy * 0.24,
-                jitter: 0.038 + this.currentEnergy * 0.19,
+                lineAlpha: 0.06 + this.currentEnergy * 0.22,
+                jitter: 0.024 + this.currentEnergy * 0.14,
                 halo: 0.16 + this.currentEnergy * 0.18
             }
         }[this.mode];

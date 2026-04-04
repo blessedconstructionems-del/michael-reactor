@@ -365,10 +365,10 @@
         const modeButtons = Array.from(document.querySelectorAll('.mode-chip'));
 
         const burst = new MichaelParticleBurst(particleStage, {
-            particleCount: window.innerWidth < 900 ? 108 : 144,
+            particleCount: window.innerWidth < 900 ? 96 : 132,
             linkCount: window.innerWidth < 900 ? 2 : 3,
             maxDpr: 1.1,
-            glowStride: window.innerWidth < 900 ? 4 : 5,
+            glowStride: window.innerWidth < 900 ? 5 : 6,
             targetFps: 48
         });
 
