@@ -568,35 +568,35 @@ class MichaelParticleBurst {
     }
 
     getSpeakingPalette(rise = 0) {
-        const lift = 0.18 + this.clamp(rise) * 0.82;
+        const lift = 0.36 + this.clamp(rise) * 0.64;
         const profile = this.speakingColorProfile;
-        const force = this.clamp((profile.force + profile.tension * 0.42) * lift);
-        const warmth = this.clamp(profile.warmth * lift);
-        const heaviness = this.clamp(profile.heaviness * lift);
-        const wonder = this.clamp(profile.wonder * lift);
-        const tension = this.clamp(profile.tension * lift);
+        const force = this.clamp((profile.force * 1.42 + profile.tension * 0.52) * lift);
+        const warmth = this.clamp((profile.warmth * 1.24 + profile.wonder * 0.1) * lift);
+        const heaviness = this.clamp((profile.heaviness * 1.58 + profile.tension * 0.14) * lift);
+        const wonder = this.clamp((profile.wonder * 1.36 + profile.warmth * 0.12) * lift);
+        const tension = this.clamp((profile.tension * 1.44 + profile.force * 0.18) * lift);
 
         let ember = this.options.palette.ember;
         let hot = this.options.palette.hot;
         let spark = this.options.palette.spark;
         let core = this.options.palette.core;
 
-        ember = this.mixHex(ember, '#3956ff', heaviness * 0.76);
-        ember = this.mixHex(ember, '#ff6a4f', force * 0.46 + tension * 0.18);
-        ember = this.mixHex(ember, '#c4efff', wonder * 0.18);
+        ember = this.mixHex(ember, '#2536d8', heaviness * 0.98);
+        ember = this.mixHex(ember, '#ff3b22', force * 0.94 + tension * 0.32);
+        ember = this.mixHex(ember, '#d2f6ff', wonder * 0.28);
 
-        hot = this.mixHex(hot, '#ff694d', force * 0.74 + tension * 0.24);
-        hot = this.mixHex(hot, '#f3b86e', warmth * 0.38);
-        hot = this.mixHex(hot, '#506cff', heaviness * 0.68);
-        hot = this.mixHex(hot, '#d8f8ff', wonder * 0.24);
+        hot = this.mixHex(hot, '#ff4f22', force * 0.98 + tension * 0.34);
+        hot = this.mixHex(hot, '#f7c870', warmth * 0.56);
+        hot = this.mixHex(hot, '#294fff', heaviness * 0.94);
+        hot = this.mixHex(hot, '#e3fbff', wonder * 0.34);
 
-        spark = this.mixHex(spark, '#ff4c36', force * 0.72 + tension * 0.34);
-        spark = this.mixHex(spark, '#ffd186', warmth * 0.48);
-        spark = this.mixHex(spark, '#7ea3ff', heaviness * 0.46);
-        spark = this.mixHex(spark, '#ffffff', wonder * 0.42 + tension * 0.12);
+        spark = this.mixHex(spark, '#ff2f18', force * 0.96 + tension * 0.44);
+        spark = this.mixHex(spark, '#ffe3a2', warmth * 0.64);
+        spark = this.mixHex(spark, '#98b6ff', heaviness * 0.58);
+        spark = this.mixHex(spark, '#ffffff', wonder * 0.72 + tension * 0.16);
 
-        core = this.mixHex(core, '#fff0de', warmth * 0.14 + force * 0.08);
-        core = this.mixHex(core, '#eef5ff', heaviness * 0.12 + wonder * 0.2);
+        core = this.mixHex(core, '#ffe1d4', warmth * 0.24 + force * 0.16);
+        core = this.mixHex(core, '#dfe8ff', heaviness * 0.24 + wonder * 0.28);
 
         return {
             core,
