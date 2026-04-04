@@ -54,6 +54,7 @@ class MichaelParticleBurst {
         this.lightBeads = [];
         this.nodeFlashes = [];
         this.lastPulseAt = 0;
+        this.lastIdleProbeAt = 0;
         this.lastThinkingProbeAt = 0;
         this.lastNodeFlashAt = 0;
 
@@ -269,11 +270,11 @@ class MichaelParticleBurst {
             channel: 'thinking',
             path: path.points,
             progress: Math.random() * 0.55,
-            speed: 0.011 + path.strength * 0.01 + Math.random() * 0.006,
-            width: 0.28 + path.strength * 0.42,
-            alpha: 0.11 + path.strength * 0.14,
-            tail: 0.08 + path.strength * 0.05,
-            mix: 0.06 + Math.random() * 0.12,
+            speed: 0.014 + path.strength * 0.013 + Math.random() * 0.008,
+            width: 0.42 + path.strength * 0.56,
+            alpha: 0.2 + path.strength * 0.22,
+            tail: 0.11 + path.strength * 0.07,
+            mix: 0.12 + Math.random() * 0.16,
             reverse: Math.random() > 0.5
         });
 
@@ -285,6 +286,30 @@ class MichaelParticleBurst {
 
         if (this.lightBeads.length > 18) {
             this.lightBeads.splice(0, this.lightBeads.length - 18);
+        }
+    }
+
+    spawnIdleProbe() {
+        if (!this.veinPaths.length) return;
+
+        const candidatePool = this.veinPaths.slice(0, Math.min(12, this.veinPaths.length));
+        const path = candidatePool[Math.floor(Math.random() * candidatePool.length)];
+        if (!path) return;
+
+        this.lightBeads.push({
+            channel: 'idle',
+            path: path.points,
+            progress: Math.random() * 0.72,
+            speed: 0.005 + path.strength * 0.004 + Math.random() * 0.003,
+            width: 0.34 + path.strength * 0.5,
+            alpha: 0.22 + path.strength * 0.18,
+            tail: 0.14 + path.strength * 0.08,
+            mix: 0.16 + Math.random() * 0.16,
+            reverse: Math.random() > 0.5
+        });
+
+        if (this.lightBeads.length > 20) {
+            this.lightBeads.splice(0, this.lightBeads.length - 20);
         }
     }
 
@@ -311,9 +336,17 @@ class MichaelParticleBurst {
         this.lightBeads = this.lightBeads.filter((pulse) => {
             pulse.progress += pulse.speed * (elapsed / 16.666);
             pulse.alpha *= pulse.channel === 'thinking'
-                ? (this.mode === 'thinking' ? 0.992 : 0.84)
-                : 0.996;
-            return pulse.progress < 1.18 && pulse.alpha > (pulse.channel === 'thinking' ? 0.025 : 0.05);
+                ? (this.mode === 'thinking' ? 0.994 : 0.84)
+                : pulse.channel === 'idle'
+                    ? (this.mode === 'idle' ? 0.997 : 0.87)
+                    : 0.996;
+            return pulse.progress < 1.18 && pulse.alpha > (
+                pulse.channel === 'thinking'
+                    ? 0.03
+                    : pulse.channel === 'idle'
+                        ? 0.04
+                        : 0.05
+            );
         });
     }
 
@@ -790,6 +823,7 @@ class MichaelParticleBurst {
         for (const pulse of this.lightBeads) {
             const points = pulse.path.map((index) => projected[index]).filter(Boolean);
             if (points.length < 2) continue;
+            const isIdlePulse = pulse.channel === 'idle';
             const isThinkingPulse = pulse.channel === 'thinking';
 
             const segments = [];
@@ -830,18 +864,31 @@ class MichaelParticleBurst {
                 const trailEnd = Math.max(0, 1 - (headDistance - visibleEnd) / tailDistance);
                 const gradient = this.ctx.createLinearGradient(sx, sy, ex, ey);
 
-                if (isThinkingPulse) {
+                if (isIdlePulse) {
                     gradient.addColorStop(0, this.mixRgba(
                         this.options.palette.ember,
                         this.options.palette.hot,
-                        0.12 + pulse.mix,
-                        pulse.alpha * (0.02 + trailStart * 0.08)
+                        0.18 + pulse.mix,
+                        pulse.alpha * (0.06 + trailStart * 0.16)
                     ));
                     gradient.addColorStop(1, this.mixRgba(
-                        this.options.palette.ember,
+                        this.options.palette.hot,
                         this.options.palette.core,
-                        0.22 + pulse.mix,
-                        pulse.alpha * (0.05 + trailEnd * 0.24)
+                        0.26 + pulse.mix,
+                        pulse.alpha * (0.14 + trailEnd * 0.34)
+                    ));
+                } else if (isThinkingPulse) {
+                    gradient.addColorStop(0, this.mixRgba(
+                        this.options.palette.ember,
+                        this.options.palette.hot,
+                        0.18 + pulse.mix,
+                        pulse.alpha * (0.05 + trailStart * 0.14)
+                    ));
+                    gradient.addColorStop(1, this.mixRgba(
+                        this.options.palette.hot,
+                        this.options.palette.core,
+                        0.34 + pulse.mix,
+                        pulse.alpha * (0.14 + trailEnd * 0.42)
                     ));
                 } else {
                     gradient.addColorStop(0, this.mixRgba(
@@ -859,9 +906,11 @@ class MichaelParticleBurst {
                 }
 
                 this.ctx.strokeStyle = gradient;
-                this.ctx.lineWidth = isThinkingPulse
-                    ? 0.26 + pulse.width * (0.44 + trailEnd * 0.22)
-                    : 0.44 + pulse.width * (0.62 + trailEnd * 0.5);
+                this.ctx.lineWidth = isIdlePulse
+                    ? 0.34 + pulse.width * (0.54 + trailEnd * 0.26)
+                    : isThinkingPulse
+                        ? 0.42 + pulse.width * (0.56 + trailEnd * 0.34)
+                        : 0.44 + pulse.width * (0.62 + trailEnd * 0.5);
                 this.ctx.beginPath();
                 this.ctx.moveTo(sx, sy);
                 this.ctx.lineTo(ex, ey);
@@ -883,17 +932,31 @@ class MichaelParticleBurst {
 
             if (!headPoint) continue;
 
-            this.ctx.shadowColor = isThinkingPulse
-                ? this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.24, 0.12 + pulse.alpha * 0.24)
-                : this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.66 + rise * 0.18, 0.38 + pulse.alpha * 0.42);
-            this.ctx.shadowBlur = isThinkingPulse
-                ? 2.2 + pulse.width * 2.2
-                : 6 + pulse.width * 4 + rise * 4;
+            this.ctx.shadowColor = isIdlePulse
+                ? this.mixRgba(this.options.palette.hot, this.options.palette.core, 0.18, 0.18 + pulse.alpha * 0.28)
+                : isThinkingPulse
+                    ? this.mixRgba(this.options.palette.hot, this.options.palette.core, 0.24, 0.18 + pulse.alpha * 0.3)
+                    : this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.66 + rise * 0.18, 0.38 + pulse.alpha * 0.42);
+            this.ctx.shadowBlur = isIdlePulse
+                ? 3.6 + pulse.width * 2.8
+                : isThinkingPulse
+                    ? 4.8 + pulse.width * 3.2
+                    : 6 + pulse.width * 4 + rise * 4;
             this.ctx.beginPath();
-            this.ctx.fillStyle = isThinkingPulse
-                ? this.mixRgba(this.options.palette.core, this.options.palette.hot, 0.16, 0.24 + pulse.alpha * 0.28)
-                : this.mixRgba(this.options.palette.core, this.options.palette.spark, 0.62 + rise * 0.22, 0.72 + pulse.alpha * 0.2);
-            this.ctx.arc(headPoint.x, headPoint.y, (isThinkingPulse ? 0.58 : 1.05) + pulse.width * (isThinkingPulse ? 0.38 : 0.72) + rise * (isThinkingPulse ? 0.06 : 0.34), 0, Math.PI * 2);
+            this.ctx.fillStyle = isIdlePulse
+                ? this.mixRgba(this.options.palette.core, this.options.palette.hot, 0.14, 0.34 + pulse.alpha * 0.34)
+                : isThinkingPulse
+                    ? this.mixRgba(this.options.palette.core, this.options.palette.hot, 0.18, 0.34 + pulse.alpha * 0.34)
+                    : this.mixRgba(this.options.palette.core, this.options.palette.spark, 0.62 + rise * 0.22, 0.72 + pulse.alpha * 0.2);
+            this.ctx.arc(
+                headPoint.x,
+                headPoint.y,
+                (isIdlePulse ? 0.92 : isThinkingPulse ? 1.02 : 1.05)
+                    + pulse.width * (isIdlePulse ? 0.48 : isThinkingPulse ? 0.54 : 0.72)
+                    + rise * (isThinkingPulse ? 0.12 : isIdlePulse ? 0.04 : 0.34),
+                0,
+                Math.PI * 2
+            );
             this.ctx.fill();
         }
 
@@ -1045,13 +1108,22 @@ class MichaelParticleBurst {
             this.spawnLightBeads(Math.min(1, this.currentEnergy * 0.7 + this.transientBoost * 2.6));
             this.lastPulseAt = now;
         }
+        if (this.mode === 'idle') {
+            const activeIdleBeads = this.lightBeads.filter((pulse) => pulse.channel === 'idle').length;
+            const desiredIdleBeads = 2 + (Math.sin(time * 0.9) > 0.4 ? 1 : 0);
+
+            if (activeIdleBeads < desiredIdleBeads && now - this.lastIdleProbeAt > 280) {
+                this.spawnIdleProbe();
+                this.lastIdleProbeAt = now;
+            }
+        }
         if (this.mode === 'thinking') {
             const activeThinkingBeads = this.lightBeads.filter((pulse) => pulse.channel === 'thinking').length;
-            const desiredThinkingBeads = 3
+            const desiredThinkingBeads = 4
                 + (Math.sin(time * 1.8) > 0.18 ? 1 : 0)
                 + (Math.cos(time * 1.14) > 0.6 ? 1 : 0);
 
-            if (activeThinkingBeads < desiredThinkingBeads && now - this.lastThinkingProbeAt > 120) {
+            if (activeThinkingBeads < desiredThinkingBeads && now - this.lastThinkingProbeAt > 90) {
                 this.spawnThinkingProbe();
                 this.lastThinkingProbeAt = now;
             }
