@@ -609,8 +609,10 @@ class MichaelParticleBurst {
         const shellRx = this.baseRadius * (0.92 + this.currentSpread * 0.24);
         const shellRy = this.baseRadius * (1.08 + this.currentSpread * 0.22);
         const rise = Math.min(1, this.currentEnergy * 0.9 + this.transientBoost * 2.4);
-        const idleLift = this.mode === 'idle' ? 0.028 : 0;
-        const shellAlpha = 0.032 + idleLift + rise * 0.092;
+        const idleLift = this.mode === 'idle' ? 0.052 : 0;
+        const thinkingLift = this.mode === 'thinking' ? 0.032 : 0;
+        const shellLift = idleLift + thinkingLift;
+        const shellAlpha = 0.032 + shellLift + rise * 0.092;
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -631,7 +633,7 @@ class MichaelParticleBurst {
                 rotation: 0.22 + this.rotationX * 0.18,
                 start: 0.18,
                 end: Math.PI - 0.18,
-                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, rise * 0.42, 0.026 + idleLift * 0.72 + rise * 0.07),
+                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, rise * 0.42, 0.026 + shellLift * 0.72 + rise * 0.07),
                 width: 0.68
             },
             {
@@ -640,7 +642,7 @@ class MichaelParticleBurst {
                 rotation: -0.72 + this.rotationY * 0.08,
                 start: -1.2,
                 end: 2.05,
-                stroke: this.mixRgba(this.options.palette.ember, this.options.palette.core, 0.34 + rise * 0.2, 0.024 + idleLift * 0.6 + rise * 0.058),
+                stroke: this.mixRgba(this.options.palette.ember, this.options.palette.core, 0.34 + rise * 0.2, 0.024 + shellLift * 0.6 + rise * 0.058),
                 width: 0.54
             },
             {
@@ -649,7 +651,7 @@ class MichaelParticleBurst {
                 rotation: -0.2 - this.rotationZ * 0.08,
                 start: Math.PI + 0.2,
                 end: Math.PI * 2 - 0.22,
-                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.56 + rise * 0.24, 0.012 + idleLift * 0.42 + rise * 0.04),
+                stroke: this.mixRgba(this.options.palette.hot, this.options.palette.spark, 0.56 + rise * 0.24, 0.012 + shellLift * 0.42 + rise * 0.04),
                 width: 0.44
             }
         ];
@@ -662,7 +664,7 @@ class MichaelParticleBurst {
             this.ctx.stroke();
         }
 
-        const sweepAlpha = 0.012 + idleLift * 0.45 + rise * 0.042;
+        const sweepAlpha = 0.012 + shellLift * 0.45 + rise * 0.042;
         this.ctx.beginPath();
         this.ctx.strokeStyle = this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.42 + rise * 0.26, sweepAlpha);
         this.ctx.lineWidth = 0.36;
@@ -685,7 +687,7 @@ class MichaelParticleBurst {
 
         const ghostRx = this.baseRadius * (0.78 + this.currentSpread * 0.18);
         const ghostRy = this.baseRadius * (0.92 + this.currentSpread * 0.15);
-        const ghostAlpha = 0.014 + this.currentEnergy * 0.05;
+        const ghostAlpha = 0.026 + this.currentEnergy * 0.08;
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -747,13 +749,14 @@ class MichaelParticleBurst {
 
     drawCore(time) {
         const rise = Math.min(1, this.currentEnergy * 0.86 + this.transientBoost * 2.1);
-        const idleLift = this.mode === 'idle' ? 0.028 : 0;
+        const idleLift = this.mode === 'idle' ? 0.045 : 0;
+        const thinkingLift = this.mode === 'thinking' ? 0.022 : 0;
         const thinkingTighten = this.mode === 'thinking' ? 0.84 : 1;
         const coreRadius = this.baseRadius * (0.016 + this.currentSpread * 0.01 + this.currentEnergy * 0.032) * thinkingTighten;
         const coreGradient = this.ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, coreRadius * 2.4);
-        coreGradient.addColorStop(0, this.rgba(this.options.palette.core, 0.12 + idleLift * 0.58 + (this.mode === 'thinking' ? this.currentEnergy * 0.06 : rise * 0.16)));
-        coreGradient.addColorStop(0.18, this.mixRgba(this.mode === 'thinking' ? this.options.palette.ember : this.options.palette.hot, this.options.palette.core, this.mode === 'thinking' ? 0.18 : 0.4, 0.06 + idleLift * 0.44 + (this.mode === 'thinking' ? this.currentEnergy * 0.05 : rise * 0.12)));
-        coreGradient.addColorStop(0.5, this.rgba(this.options.palette.ember, 0.02 + idleLift * 0.22 + (this.mode === 'thinking' ? this.currentEnergy * 0.03 : rise * 0.05)));
+        coreGradient.addColorStop(0, this.rgba(this.options.palette.core, 0.12 + idleLift * 0.58 + thinkingLift * 0.5 + (this.mode === 'thinking' ? this.currentEnergy * 0.06 : rise * 0.16)));
+        coreGradient.addColorStop(0.18, this.mixRgba(this.mode === 'thinking' ? this.options.palette.ember : this.options.palette.hot, this.options.palette.core, this.mode === 'thinking' ? 0.18 : 0.4, 0.06 + idleLift * 0.44 + thinkingLift * 0.42 + (this.mode === 'thinking' ? this.currentEnergy * 0.05 : rise * 0.12)));
+        coreGradient.addColorStop(0.5, this.rgba(this.options.palette.ember, 0.02 + idleLift * 0.22 + thinkingLift * 0.18 + (this.mode === 'thinking' ? this.currentEnergy * 0.03 : rise * 0.05)));
         coreGradient.addColorStop(1, this.rgba(this.options.palette.ember, 0));
 
         this.ctx.save();
@@ -936,8 +939,8 @@ class MichaelParticleBurst {
 
         const projected = this.particles.map((particle) => this.rotatePoint(particle, time));
         const rise = Math.min(1, this.currentEnergy * 0.9 + this.transientBoost * 2.5);
-        const idleLift = this.mode === 'idle' ? 0.16 : 0;
-        const thinkingLift = this.mode === 'thinking' ? 0.08 : 0;
+        const idleLift = this.mode === 'idle' ? 0.24 : 0;
+        const thinkingLift = this.mode === 'thinking' ? 0.18 : 0;
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
@@ -951,8 +954,10 @@ class MichaelParticleBurst {
                 const to = projected[linkIndex];
                 const distance = Math.hypot(from.sx - to.sx, from.sy - to.sy);
                 const maxDistance = this.baseRadius * (this.mode === 'idle'
-                    ? 0.36 + this.currentSpread * 0.4
-                    : 0.22 + this.currentSpread * 0.26);
+                    ? 0.38 + this.currentSpread * 0.42
+                    : this.mode === 'thinking'
+                        ? 0.28 + this.currentSpread * 0.32
+                        : 0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
                 const filamentMix = Math.max(from.filament || 0, to.filament || 0);
@@ -961,19 +966,21 @@ class MichaelParticleBurst {
                     ? 1.02 + filamentMix * (1.4 + rise * 2.2)
                     : (this.mode === 'idle'
                         ? 1.34 + filamentMix * 1.28
-                        : 1 + filamentMix * 0.64);
+                        : 1.24 + filamentMix * 0.92);
                 const alpha = Math.min(0.94, baseAlpha * stringBoost);
                 this.ctx.strokeStyle = this.mixRgba(
                     this.options.palette.ember,
                     filamentMix > 0.62
                         ? (this.mode === 'thinking' ? this.options.palette.core : this.options.palette.spark)
                         : this.options.palette.hot,
-                    this.mode === 'thinking' ? 0.18 + this.currentEnergy * 0.18 : 0.42 + rise * 0.46,
+                    this.mode === 'thinking' ? 0.26 + this.currentEnergy * 0.24 : 0.42 + rise * 0.46,
                     alpha
                 );
                 this.ctx.lineWidth = this.mode === 'idle'
                     ? 0.28 + filamentMix * 0.24
-                    : 0.24 + filamentMix * (this.mode === 'thinking' ? 0.14 : 0.18 + rise * 0.28) + this.currentEnergy * 0.16 + rise * (this.mode === 'thinking' ? 0.04 : 0.12);
+                    : this.mode === 'thinking'
+                        ? 0.3 + filamentMix * 0.22 + this.currentEnergy * 0.12
+                        : 0.24 + filamentMix * (0.18 + rise * 0.28) + this.currentEnergy * 0.16 + rise * 0.12;
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
                 this.ctx.lineTo(to.sx, to.sy);
@@ -1007,17 +1014,17 @@ class MichaelParticleBurst {
         }
 
         this.ctx.shadowColor = this.mode === 'thinking'
-            ? this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.18, 0.1 + this.currentEnergy * 0.06)
+            ? this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.24, 0.14 + this.currentEnergy * 0.08)
             : this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.42 + rise * 0.26, 0.18 + rise * 0.1);
         for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
             const point = projected[i];
             const glowRadius = point.size * (0.24 + point.scale * 0.18) * (0.72 + this.currentEnergy * 0.12);
             this.ctx.beginPath();
             this.ctx.fillStyle = this.mode === 'thinking'
-                ? this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.18, point.alpha * (0.018 + this.currentEnergy * 0.05))
+                ? this.mixRgba(this.options.palette.ember, this.options.palette.hot, 0.2, point.alpha * (0.032 + this.currentEnergy * 0.08))
                 : this.mixRgba(this.options.palette.hot, this.options.palette.spark, rise * 0.3, point.alpha * (0.02 + idleLift * 0.16 + rise * 0.08));
             this.ctx.shadowBlur = this.mode === 'thinking'
-                ? 0.7 + point.scale * 0.5 + this.currentEnergy * 1.8
+                ? 1.4 + point.scale * 0.8 + this.currentEnergy * 2.8
                 : 0.8 + point.scale * 0.8 + idleLift * 3.4 + rise * 3.2;
             this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
             this.ctx.fill();
@@ -1061,16 +1068,16 @@ class MichaelParticleBurst {
             idle: {
                 spread: 0.43,
                 spin: 0.0024,
-                lineAlpha: 0.116,
+                lineAlpha: 0.134,
                 jitter: 0.02,
                 halo: 0.165
             },
             thinking: {
                 spread: 0.44,
                 spin: 0.124,
-                lineAlpha: 0.108,
+                lineAlpha: 0.148,
                 jitter: 0.034,
-                halo: 0.18
+                halo: 0.22
             },
             speaking: {
                 spread: 0.24 + this.currentEnergy * 0.62 + this.transientBoost * 0.18,
