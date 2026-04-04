@@ -423,6 +423,11 @@ class MichaelParticleBurst {
             const filamentBurst = point.filament * (this.currentEnergy * 0.26 + this.transientBoost * 0.88) * (0.38 + filamentWave * 0.92);
             shell = shell - speechCompression + filamentBurst;
             filamentTension = point.filament * (0.26 + this.currentEnergy * 0.44 + this.transientBoost * 0.55);
+        } else if (this.mode === 'idle') {
+            const idleDrift = Math.sin(time * 1.55 + point.filamentPhase + point.phase * 0.3);
+            shell += point.filament * 0.042 * idleDrift;
+            shell += Math.sin(time * 0.9 + point.phase) * 0.016;
+            filamentTension = point.filament * 0.04;
         } else if (this.mode === 'thinking') {
             const filamentWave = Math.max(0, Math.sin(time * 4.0 + point.filamentPhase));
             shell += point.filament * 0.05 * filamentWave;
@@ -713,7 +718,9 @@ class MichaelParticleBurst {
                 if (linkIndex < i) continue;
                 const to = projected[linkIndex];
                 const distance = Math.hypot(from.sx - to.sx, from.sy - to.sy);
-                const maxDistance = this.baseRadius * (0.22 + this.currentSpread * 0.26);
+                const maxDistance = this.baseRadius * (this.mode === 'idle'
+                    ? 0.31 + this.currentSpread * 0.34
+                    : 0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
                 const filamentMix = Math.max(from.filament || 0, to.filament || 0);
@@ -721,7 +728,7 @@ class MichaelParticleBurst {
                 const stringBoost = this.mode === 'speaking'
                     ? 1.02 + filamentMix * (1.4 + rise * 2.2)
                     : (this.mode === 'idle'
-                        ? 1.12 + filamentMix * 0.9
+                        ? 1.18 + filamentMix * 1.02
                         : 0.94 + filamentMix * 0.52);
                 const alpha = Math.min(0.94, baseAlpha * stringBoost);
                 this.ctx.strokeStyle = this.mixRgba(
