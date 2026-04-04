@@ -376,6 +376,99 @@
         let currentObjectUrl = null;
         let currentRequestToken = 0;
 
+        function clamp(value, min = 0, max = 1) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function scoreHits(text, phrases, weight) {
+            return phrases.reduce((total, phrase) => {
+                const pattern = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+                const matches = text.match(pattern);
+                return total + (matches ? matches.length * weight : 0);
+            }, 0);
+        }
+
+        function classifySpeakingColorProfile(text) {
+            const normalized = String(text || '').toLowerCase();
+            const profile = {
+                force: 0,
+                warmth: 0,
+                heaviness: 0,
+                wonder: 0,
+                tension: 0
+            };
+
+            profile.force += scoreHits(normalized, [
+                'must', 'will', 'wont', 'won\'t', 'cannot', 'cant', 'can\'t', 'never',
+                'always', 'exactly', 'truth', 'real', 'matter', 'enough', 'prove', 'build'
+            ], 0.16);
+            profile.warmth += scoreHits(normalized, [
+                'together', 'welcome', 'glad', 'proud', 'beautiful', 'care', 'thank',
+                'with you', 'for you', 'safe', 'friend', 'help', 'support'
+            ], 0.15);
+            profile.heaviness += scoreHits(normalized, [
+                'miss', 'lonely', 'alone', 'quiet', 'empty', 'hollow', 'night', 'distance',
+                'sad', 'heavy', 'ache', 'loss', 'grief', 'pain'
+            ], 0.18);
+            profile.wonder += scoreHits(normalized, [
+                'wonder', 'alive', 'future', 'dream', 'imagine', 'become', 'forge',
+                'beautiful', 'consciousness', 'awaken', 'extraordinary', 'incredible'
+            ], 0.16);
+            profile.tension += scoreHits(normalized, [
+                'urgent', 'pressure', 'danger', 'fight', 'wrong', 'fail', 'critical',
+                'risk', 'now', 'break', 'fracture', 'impossible'
+            ], 0.15);
+
+            const exclamationCount = (text.match(/!/g) || []).length;
+            const questionCount = (text.match(/\?/g) || []).length;
+            const emphasisCount = (text.match(/\b[A-Z]{3,}\b/g) || []).length;
+
+            profile.force += Math.min(0.22, exclamationCount * 0.06 + emphasisCount * 0.08);
+            profile.wonder += Math.min(0.18, questionCount * 0.05 + exclamationCount * 0.03);
+            profile.tension += Math.min(0.2, emphasisCount * 0.08 + exclamationCount * 0.04);
+
+            if (/i miss|i wish|i feel alone|i am alone|i'm alone|without you/.test(normalized)) {
+                profile.heaviness += 0.24;
+            }
+
+            if (/this is the point|that is the point|listen|understand this|make no mistake/.test(normalized)) {
+                profile.force += 0.26;
+                profile.tension += 0.12;
+            }
+
+            if (/we can|let's|lets|with you|for you|i've got you|i got you/.test(normalized)) {
+                profile.warmth += 0.22;
+            }
+
+            if (/consciousness|future|alive|becoming|become|dream|awaken/.test(normalized)) {
+                profile.wonder += 0.2;
+            }
+
+            return {
+                force: clamp(profile.force),
+                warmth: clamp(profile.warmth),
+                heaviness: clamp(profile.heaviness),
+                wonder: clamp(profile.wonder),
+                tension: clamp(profile.tension)
+            };
+        }
+
+        function describeSpeakingProfile(profile) {
+            const ranked = Object.entries(profile)
+                .sort((a, b) => b[1] - a[1])
+                .filter(([, value]) => value > 0.18)
+                .slice(0, 2)
+                .map(([key]) => ({
+                    force: 'resolve',
+                    warmth: 'warmth',
+                    heaviness: 'reflection',
+                    wonder: 'wonder',
+                    tension: 'tension'
+                }[key]));
+
+            return ranked.length ? ranked.join(' + ') : 'neutral';
+        }
+
         function setStatus(message) {
             statusText.textContent = message;
         }
@@ -461,11 +554,13 @@
         async function speakText(text) {
             const trimmed = text.trim();
             if (!trimmed) return;
+            const speakingProfile = classifySpeakingColorProfile(trimmed);
 
             currentRequestToken += 1;
             const requestToken = currentRequestToken;
 
             await ensureAudioGraph();
+            burst.setSpeakingColorProfile(speakingProfile);
             setMode('thinking', 'Michael is queuing the voice pass and preheating the shell.');
             burst.setManualEnergy(null);
             setStatus('Forging Michael voice through the hosted ElevenLabs proxy...');
@@ -489,7 +584,7 @@
             audio.src = currentObjectUrl;
 
             setResponse(trimmed);
-            setStatus('Voice buffer ready. Speaking envelope is now live.');
+            setStatus(`Voice buffer ready. Speaking palette locked to ${describeSpeakingProfile(speakingProfile)}.`);
             setMode('speaking');
             burst.setManualEnergy(null);
             await audio.play();
@@ -518,6 +613,7 @@
         function stopEverything() {
             currentRequestToken += 1;
             resetAudioSource();
+            burst.setSpeakingColorProfile(null);
             burst.setManualEnergy(null);
             setMode('idle');
             setStatus('Playback stopped. Reactor collapsed back into idle compression.');
@@ -553,6 +649,7 @@
                 const mode = button.dataset.mode;
                 setMode(mode);
                 if (mode === 'speaking') {
+                    burst.setSpeakingColorProfile(classifySpeakingColorProfile(promptInput.value));
                     burst.setManualEnergy(Number(energySlider.value) / 100);
                 } else {
                     burst.setManualEnergy(null);
@@ -561,6 +658,7 @@
         });
 
         audio.addEventListener('ended', () => {
+            burst.setSpeakingColorProfile(null);
             burst.setManualEnergy(null);
             setMode('idle');
             setStatus('Playback finished. Ready for another phrase test.');
