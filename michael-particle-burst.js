@@ -10,6 +10,10 @@ class MichaelParticleBurst {
 
         this.options = {
             particleCount: options.particleCount || 180,
+            linkCount: options.linkCount || 3,
+            maxDpr: options.maxDpr || 1.15,
+            glowStride: options.glowStride || 5,
+            targetFps: options.targetFps || 48,
             palette: options.palette || {
                 core: '#ffd36b',
                 hot: '#ff9f1c',
@@ -32,6 +36,7 @@ class MichaelParticleBurst {
         this.rotationZ = 0;
         this.lastMode = 'idle';
         this.lastFrame = performance.now();
+        this.lastRenderTime = 0;
         this.frameId = null;
         this.audioContext = null;
         this.audioElement = null;
@@ -56,7 +61,7 @@ class MichaelParticleBurst {
 
         this.container.style.position = this.container.style.position || 'relative';
         this.container.appendChild(this.canvas);
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true }) || this.canvas.getContext('2d');
 
         this.particles = this.buildParticles(this.options.particleCount);
         this.resize();
@@ -99,7 +104,7 @@ class MichaelParticleBurst {
             }
 
             distances.sort((a, b) => a.distance - b.distance);
-            particles[i].links = distances.slice(0, 4).map((entry) => entry.index);
+            particles[i].links = distances.slice(0, this.options.linkCount).map((entry) => entry.index);
         }
 
         return particles;
@@ -115,10 +120,13 @@ class MichaelParticleBurst {
     }
 
     resize() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const rect = this.container.getBoundingClientRect();
         this.width = Math.max(320, rect.width || this.container.clientWidth || 720);
         this.height = Math.max(320, rect.height || this.container.clientHeight || 720);
+        const area = this.width * this.height;
+        const dprCap = area > 1100000 ? 1 : this.options.maxDpr;
+        const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+        this.glowStride = area > 1100000 ? this.options.glowStride + 2 : this.options.glowStride;
         this.canvas.width = Math.round(this.width * dpr);
         this.canvas.height = Math.round(this.height * dpr);
         this.canvas.style.width = `${this.width}px`;
@@ -362,12 +370,12 @@ class MichaelParticleBurst {
                 if (linkIndex < i) continue;
                 const to = projected[linkIndex];
                 const distance = Math.hypot(from.sx - to.sx, from.sy - to.sy);
-                const maxDistance = this.baseRadius * (0.26 + this.currentSpread * 0.34);
+                const maxDistance = this.baseRadius * (0.22 + this.currentSpread * 0.26);
                 if (distance > maxDistance) continue;
 
                 const alpha = this.currentLineAlpha * (1 - distance / maxDistance) * Math.min(from.alpha, to.alpha);
                 this.ctx.strokeStyle = `rgba(255, 190, 92, ${alpha})`;
-                this.ctx.lineWidth = 0.4 + this.currentEnergy * 0.42;
+                this.ctx.lineWidth = 0.34 + this.currentEnergy * 0.28;
                 this.ctx.beginPath();
                 this.ctx.moveTo(from.sx, from.sy);
                 this.ctx.lineTo(to.sx, to.sy);
@@ -379,15 +387,25 @@ class MichaelParticleBurst {
 
         for (const point of projected) {
             const radius = (0.62 + point.scale * 1.02) * (0.74 + this.currentEnergy * 0.46);
-            const glow = 6 + point.scale * 8 + this.currentEnergy * 12;
 
             this.ctx.beginPath();
             this.ctx.fillStyle = `rgba(255, 248, 224, ${point.alpha * 0.88})`;
-            this.ctx.shadowBlur = glow;
-            this.ctx.shadowColor = 'rgba(255, 160, 64, 0.9)';
+            this.ctx.shadowBlur = 0;
             this.ctx.arc(point.sx, point.sy, radius, 0, Math.PI * 2);
             this.ctx.fill();
         }
+
+        this.ctx.shadowColor = 'rgba(255, 160, 64, 0.88)';
+        for (let i = this.glowStride - 1; i < projected.length; i += this.glowStride) {
+            const point = projected[i];
+            const glowRadius = (0.48 + point.scale * 0.5) * (0.62 + this.currentEnergy * 0.24);
+            this.ctx.beginPath();
+            this.ctx.fillStyle = `rgba(255, 214, 156, ${point.alpha * 0.44})`;
+            this.ctx.shadowBlur = 4 + point.scale * 4 + this.currentEnergy * 5;
+            this.ctx.arc(point.sx, point.sy, glowRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.shadowBlur = 0;
 
         this.ctx.restore();
     }
@@ -439,6 +457,11 @@ class MichaelParticleBurst {
     }
 
     loop(now) {
+        if (this.lastRenderTime && now - this.lastRenderTime < (1000 / this.options.targetFps)) {
+            this.frameId = requestAnimationFrame(this.loop);
+            return;
+        }
+        this.lastRenderTime = now;
         this.tick(now);
         this.frameId = requestAnimationFrame(this.loop);
     }

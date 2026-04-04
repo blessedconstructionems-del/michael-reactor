@@ -364,7 +364,13 @@
         const audio = document.getElementById('voiceAudio');
         const modeButtons = Array.from(document.querySelectorAll('.mode-chip'));
 
-        const burst = new MichaelParticleBurst(particleStage, { particleCount: 220 });
+        const burst = new MichaelParticleBurst(particleStage, {
+            particleCount: window.innerWidth < 900 ? 108 : 144,
+            linkCount: window.innerWidth < 900 ? 2 : 3,
+            maxDpr: 1.1,
+            glowStride: window.innerWidth < 900 ? 4 : 5,
+            targetFps: 48
+        });
 
         let currentMode = 'idle';
         let currentObjectUrl = null;
